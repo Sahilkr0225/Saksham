@@ -1,0 +1,61 @@
+# ===========================
+# NODE / BACKEND
+# ===========================
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.production
+.env.development
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===========================
+# NEXT.JS / FRONTEND
+# ===========================
+.next/
+out/
+.vercel/
+
+# ===========================
+# DATABASE
+# ===========================
+*.sql.bak
+pgdata/
+postgres-data/
+
+# ===========================
+# DOCKER
+# ===========================
+docker-compose.override.yml
+
+# ===========================
+# OS FILES
+# ===========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===========================
+# EDITOR
+# ===========================
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# ===========================
+# TEMP / SCRATCH
+# ===========================
+tmp/
+temp_doc.txt
+
+# ===========================
+# UPLOADS / MEDIA (runtime)
+# ===========================
+uploads/
+public/uploads/
