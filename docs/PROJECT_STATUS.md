@@ -11,9 +11,9 @@
 |-------|-------------|--------|
 | Phase 0 | Planning & Research | ✅ Done |
 | Phase 1 | SRS (Foundation Module) | ✅ Done |
-| Phase 2 | System Design | 🔄 In Progress |
+| Phase 2 | System Design | ✅ Done |
 | Phase 3 | UI/UX | ⬜ Pending |
-| Phase 4 | Backend Implementation | ⬜ Pending |
+| Phase 4 | Backend Implementation | 🔄 In Progress |
 | Phase 5 | Frontend Implementation | ⬜ Pending |
 | Phase 6 | Testing | ⬜ Pending |
 | Phase 7 | Deployment | ⬜ Pending |
@@ -25,9 +25,9 @@
 
 | # | Module | Layer | SRS | Design | Backend | Frontend | Tests |
 |---|--------|-------|-----|--------|---------|----------|-------|
-| 1 | Auth & User Management | Foundation | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| 2 | RBAC | Foundation | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| 3 | Audit Logs | Foundation | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| 1 | Auth & User Management | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
+| 2 | RBAC | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
+| 3 | Audit Logs | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
 | 4 | Academic Structure | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 5 | Admissions | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 6 | Student Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -64,6 +64,8 @@
 
 | Date | Decision | Reason |
 |------|----------|--------|
+| 2026-07-23 | Use Neon.tech Cloud PostgreSQL for development | Easy database start with zero local machine installations |
+| 2026-07-23 | Switch to local Docker in future deployment phase | Production environment parity, simple offline migrations |
 | 2026-07-18 | AI Layer deferred to future scope | Stability first; AI on top of stable platform |
 | 2026-07-18 | One role per user in v1 | Simplicity; multi-role in future |
 | 2026-07-18 | Invite-only signup (no self-register) | School controls all accounts |
