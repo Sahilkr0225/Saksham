@@ -1,0 +1,394 @@
+erDiagram
+
+    %% ===================== FOUNDATION LAYER =====================
+    ROLE ||--o{ USER : "assigned to"
+    ROLE ||--o{ ROLE_PERMISSION : has
+    PERMISSION ||--o{ ROLE_PERMISSION : grants
+    USER ||--o{ AUDIT_LOG : performs
+    USER ||--o| STUDENT : "linked account"
+    USER ||--o| PARENT : "linked account"
+    USER ||--o| TEACHER : "linked account"
+
+    ROLE {
+        int id PK
+        string name
+        string description
+    }
+    PERMISSION {
+        int id PK
+        string name
+        string module
+        string action
+    }
+    ROLE_PERMISSION {
+        int role_id FK
+        int permission_id FK
+    }
+    USER {
+        int id PK
+        string username
+        string email
+        string password_hash
+        int role_id FK
+        string status
+        datetime last_login
+        datetime created_at
+    }
+    AUDIT_LOG {
+        int id PK
+        int user_id FK
+        string action
+        string entity_type
+        int entity_id
+        string ip_address
+        datetime timestamp
+    }
+
+    %% ===================== ACADEMIC STRUCTURE =====================
+    ACADEMIC_YEAR ||--o{ CLASS : contains
+    CLASS ||--o{ SECTION : contains
+    CLASS ||--o{ CLASS_SUBJECT : offers
+    SUBJECT ||--o{ CLASS_SUBJECT : "taught in"
+    TEACHER ||--o{ CLASS_SUBJECT : teaches
+
+    ACADEMIC_YEAR {
+        int id PK
+        string name
+        date start_date
+        date end_date
+        boolean is_current
+    }
+    CLASS {
+        int id PK
+        int academic_year_id FK
+        string name
+        int level_order
+    }
+    SECTION {
+        int id PK
+        int class_id FK
+        string name
+        int capacity
+    }
+    SUBJECT {
+        int id PK
+        string name
+        string code
+        boolean is_elective
+    }
+    CLASS_SUBJECT {
+        int id PK
+        int class_id FK
+        int subject_id FK
+        int teacher_id FK
+    }
+
+    %% ===================== ADMISSIONS =====================
+    ADMISSION ||--o{ ADMISSION_DOCUMENT : includes
+    ADMISSION ||--o| STUDENT : "converts to"
+    CLASS ||--o{ ADMISSION : "applied for"
+
+    ADMISSION {
+        int id PK
+        string applicant_name
+        int class_applied_id FK
+        date dob
+        string status
+        date application_date
+        int reviewed_by FK
+    }
+    ADMISSION_DOCUMENT {
+        int id PK
+        int admission_id FK
+        string doc_type
+        string file_path
+        datetime uploaded_at
+    }
+
+    %% ===================== STUDENT / PARENT / TEACHER =====================
+    STUDENT ||--o{ STUDENT_PARENT : "has guardians"
+    PARENT ||--o{ STUDENT_PARENT : guardians
+    CLASS ||--o{ STUDENT : enrolls
+    SECTION ||--o{ STUDENT : enrolls
+
+    STUDENT {
+        int id PK
+        int user_id FK
+        string admission_no
+        int class_id FK
+        int section_id FK
+        date dob
+        string gender
+        string address
+        string status
+    }
+    PARENT {
+        int id PK
+        int user_id FK
+        string name
+        string phone
+        string occupation
+        string relation_type
+    }
+    STUDENT_PARENT {
+        int student_id FK
+        int parent_id FK
+        string relation
+        boolean is_primary_contact
+    }
+    TEACHER {
+        int id PK
+        int user_id FK
+        string employee_id
+        string qualification
+        string specialization
+        date joining_date
+    }
+
+    %% ===================== ATTENDANCE =====================
+    STUDENT ||--o{ STUDENT_ATTENDANCE : "marked for"
+    TEACHER ||--o{ TEACHER_ATTENDANCE : "marked for"
+    TEACHER ||--o{ STUDENT_ATTENDANCE : "marked by"
+
+    STUDENT_ATTENDANCE {
+        int id PK
+        int student_id FK
+        date attendance_date
+        string status
+        int marked_by FK
+    }
+    TEACHER_ATTENDANCE {
+        int id PK
+        int teacher_id FK
+        date attendance_date
+        string status
+    }
+
+    %% ===================== HOMEWORK & ASSIGNMENTS =====================
+    CLASS_SUBJECT ||--o{ HOMEWORK : "assigned for"
+    TEACHER ||--o{ HOMEWORK : creates
+    HOMEWORK ||--o{ HOMEWORK_SUBMISSION : receives
+    STUDENT ||--o{ HOMEWORK_SUBMISSION : submits
+
+    HOMEWORK {
+        int id PK
+        int class_subject_id FK
+        int teacher_id FK
+        string title
+        string description
+        date due_date
+        datetime created_at
+    }
+    HOMEWORK_SUBMISSION {
+        int id PK
+        int homework_id FK
+        int student_id FK
+        string file_path
+        datetime submitted_at
+        string grade
+        string feedback
+    }
+
+    %% ===================== EXAMS & RESULTS =====================
+    ACADEMIC_YEAR ||--o{ EXAM : scheduled
+    CLASS ||--o{ EXAM : "held for"
+    EXAM ||--o{ EXAM_SCHEDULE : contains
+    SUBJECT ||--o{ EXAM_SCHEDULE : "scheduled for"
+    EXAM ||--o{ RESULT : produces
+    STUDENT ||--o{ RESULT : receives
+    SUBJECT ||--o{ RESULT : "scored in"
+
+    EXAM {
+        int id PK
+        string name
+        int academic_year_id FK
+        int class_id FK
+        date start_date
+        date end_date
+    }
+    EXAM_SCHEDULE {
+        int id PK
+        int exam_id FK
+        int subject_id FK
+        date exam_date
+        int max_marks
+    }
+    RESULT {
+        int id PK
+        int exam_id FK
+        int student_id FK
+        int subject_id FK
+        float marks_obtained
+        string grade
+        boolean is_published
+    }
+
+    %% ===================== FEE MANAGEMENT =====================
+    CLASS ||--o{ FEE_STRUCTURE : "defined for"
+    ACADEMIC_YEAR ||--o{ FEE_STRUCTURE : "defined for"
+    FEE_STRUCTURE ||--o{ FEE_PAYMENT : "paid against"
+    STUDENT ||--o{ FEE_PAYMENT : pays
+
+    FEE_STRUCTURE {
+        int id PK
+        int class_id FK
+        int academic_year_id FK
+        string fee_type
+        float amount
+        date due_date
+    }
+    FEE_PAYMENT {
+        int id PK
+        int student_id FK
+        int fee_structure_id FK
+        float amount_paid
+        date payment_date
+        string payment_mode
+        string status
+        string transaction_ref
+    }
+
+    %% ===================== NOTICES & EVENTS =====================
+    USER ||--o{ NOTICE : publishes
+    USER ||--o{ EVENT : organizes
+
+    NOTICE {
+        int id PK
+        string title
+        string description
+        string target_role
+        int published_by FK
+        datetime published_at
+    }
+    EVENT {
+        int id PK
+        string title
+        string description
+        date event_date
+        string venue
+        int organized_by FK
+    }
+
+    %% ===================== NOTIFICATION ENGINE =====================
+    USER ||--o{ NOTIFICATION : receives
+    NOTIFICATION_TEMPLATE ||--o{ NOTIFICATION : "generated from"
+
+    NOTIFICATION {
+        int id PK
+        int user_id FK
+        int template_id FK
+        string channel
+        string message
+        boolean is_read
+        datetime created_at
+    }
+    NOTIFICATION_TEMPLATE {
+        int id PK
+        string name
+        string channel
+        string template_body
+    }
+
+    %% ===================== DOCUMENT MANAGEMENT (polymorphic) =====================
+    USER ||--o{ DOCUMENT : uploads
+
+    DOCUMENT {
+        int id PK
+        string owner_type
+        int owner_id
+        string doc_type
+        string file_path
+        int uploaded_by FK
+        datetime uploaded_at
+    }
+
+    %% ===================== REPORTS & ANALYTICS =====================
+    USER ||--o{ REPORT : generates
+
+    REPORT {
+        int id PK
+        string name
+        string type
+        int generated_by FK
+        json parameters
+        datetime generated_at
+    }
+
+    %% ===================== ADMINISTRATION & SETTINGS =====================
+    SYSTEM_SETTING {
+        int id PK
+        string setting_key
+        string setting_value
+        string description
+    }
+    SCHOOL_PROFILE {
+        int id PK
+        string name
+        string address
+        string logo_path
+        string contact_email
+        string contact_phone
+    }
+
+    %% ===================== HELP & SUPPORT =====================
+    USER ||--o{ SUPPORT_TICKET : raises
+    SUPPORT_TICKET ||--o{ TICKET_REPLY : has
+    USER ||--o{ TICKET_REPLY : writes
+
+    SUPPORT_TICKET {
+        int id PK
+        int raised_by FK
+        string subject
+        string description
+        string status
+        string priority
+        datetime created_at
+    }
+    TICKET_REPLY {
+        int id PK
+        int ticket_id FK
+        int replied_by FK
+        string message
+        datetime replied_at
+    }
+
+    %% ===================== GALLERY & MEDIA =====================
+    MEDIA_ALBUM ||--o{ MEDIA_ITEM : contains
+    USER ||--o{ MEDIA_ALBUM : creates
+
+    MEDIA_ALBUM {
+        int id PK
+        string title
+        string description
+        int created_by FK
+        datetime created_at
+    }
+    MEDIA_ITEM {
+        int id PK
+        int album_id FK
+        string file_path
+        string caption
+        datetime uploaded_at
+    }
+
+    %% ===================== PUBLIC WEBSITE (CMS) =====================
+    CMS_PAGE ||--o{ CMS_MENU : "linked from"
+    USER ||--o{ CMS_PAGE : authors
+
+    CMS_PAGE {
+        int id PK
+        string title
+        string slug
+        text content
+        string status
+        int authored_by FK
+        datetime published_at
+    }
+    CMS_MENU {
+        int id PK
+        string label
+        string url
+        int parent_id FK
+        int page_id FK
+        int display_order
+    }

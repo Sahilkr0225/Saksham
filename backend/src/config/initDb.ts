@@ -89,6 +89,100 @@ const tablesSql = `
   CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS academic_years (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(50) NOT NULL UNIQUE,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      is_current BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS classes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(50) NOT NULL UNIQUE,
+      code VARCHAR(20) UNIQUE,
+      display_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS sections (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      name VARCHAR(50) NOT NULL,
+      capacity INT DEFAULT 40,
+      room_number VARCHAR(20),
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE(class_id, name)
+  );
+
+  CREATE TABLE IF NOT EXISTS subjects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(100) NOT NULL,
+      code VARCHAR(20) NOT NULL UNIQUE,
+      type VARCHAR(20) NOT NULL DEFAULT 'core',
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS class_subjects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      teacher_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE(class_id, subject_id, academic_year_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS admission_applications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      application_number VARCHAR(50) NOT NULL UNIQUE,
+      applicant_name VARCHAR(100) NOT NULL,
+      dob DATE NOT NULL,
+      gender VARCHAR(10) NOT NULL,
+      applied_class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+      parent_name VARCHAR(100) NOT NULL,
+      parent_email VARCHAR(255) NOT NULL,
+      parent_phone VARCHAR(20) NOT NULL,
+      address TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'submitted', -- 'submitted', 'under_review', 'approved', 'rejected', 'enrolled'
+      remarks TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admissions_status ON admission_applications(status);
+  CREATE INDEX IF NOT EXISTS idx_admissions_class ON admission_applications(applied_class_id);
+
+  CREATE TABLE IF NOT EXISTS students (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      admission_number VARCHAR(50) NOT NULL UNIQUE,
+      admission_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      dob DATE NOT NULL,
+      gender VARCHAR(10) NOT NULL,
+      current_class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+      current_section_id UUID REFERENCES sections(id) ON DELETE SET NULL,
+      roll_number VARCHAR(20),
+      parent_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      blood_group VARCHAR(5),
+      address TEXT,
+      emergency_contact VARCHAR(20),
+      status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'active', 'transferred', 'graduated', 'suspended'
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(user_id);
+  CREATE INDEX IF NOT EXISTS idx_students_class_section ON students(current_class_id, current_section_id);
+  CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
 `;
 
 const seedRolesSql = `
@@ -101,6 +195,52 @@ const seedRolesSql = `
       ('student', 'Own profile, results, notices')
   ON CONFLICT (name) DO NOTHING;
 `;
+
+// Seeds the first super admin user — only runs if email doesn't exist yet
+const seedSuperAdmin = async () => {
+  const bcrypt = await import('bcryptjs');
+
+  const name     = 'Sahil Kumar';
+  const email    = 'sahil@gmail.com';
+  const password = 'Password@1234';
+
+  // Check if super admin already exists
+  const existing = await pool.query(
+    'SELECT id FROM users WHERE email = $1',
+    [email]
+  );
+  if ((existing.rowCount ?? 0) > 0) {
+    console.log('👤 Super admin already exists — skipping seed.');
+    return;
+  }
+
+  // Hash password at runtime (never store plain text)
+  const passwordHash = await bcrypt.default.hash(password, 12);
+
+  // Insert user
+  const userResult = await pool.query(
+    `INSERT INTO users (name, email, password_hash, is_active, must_change_password)
+     VALUES ($1, $2, $3, TRUE, FALSE)
+     RETURNING id`,
+    [name, email, passwordHash]
+  );
+  const userId = userResult.rows[0].id;
+
+  // Fetch super_admin role id
+  const roleResult = await pool.query(
+    `SELECT id FROM roles WHERE name = 'super_admin'`
+  );
+  const roleId = roleResult.rows[0].id;
+
+  // Assign super_admin role to user
+  await pool.query(
+    `INSERT INTO user_roles (user_id, role_id, is_active)
+     VALUES ($1, $2, TRUE)`,
+    [userId, roleId]
+  );
+
+  console.log(`👑 Super admin seeded → ${email}`);
+};
 
 export const initDb = async () => {
   const client = await pool.connect();
@@ -129,5 +269,8 @@ export const initDb = async () => {
   } finally {
     client.release();
   }
+
+  // Seed super admin outside the transaction (has its own checks)
+  await seedSuperAdmin();
 };
 export default initDb;

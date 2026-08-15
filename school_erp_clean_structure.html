@@ -1,0 +1,44 @@
+<h2 class="sr-only">Simplified layered structure diagram of the school ERP system, showing Foundation, People, Academic Operations, Finance and Documents, Content, Communication, and Analytics groups</h2>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#3C3489' : '#EEEDFE',
+    primaryBorderColor: dark ? '#AFA9EC' : '#534AB7',
+    primaryTextColor: dark ? '#CECBF6' : '#26215C',
+    clusterBkg: 'transparent',
+    clusterBorder: dark ? '#5F5E5A' : '#B4B2A9'
+  },
+  flowchart: { curve: 'basis', htmlLabels: true, nodeSpacing: 40, rankSpacing: 55 }
+});
+const graph = `graph TD
+  FOUND["Foundation<br/>Auth and Users, RBAC,<br/>Audit Logs, Settings"]
+  PEOPLE["People<br/>Admissions, Students,<br/>Parents, Teachers"]
+  OPS["Academic Operations<br/>Academic Structure, Attendance,<br/>Homework, Exams and Results"]
+  FIN["Finance and Documents<br/>Fee Management,<br/>Document Mgmt"]
+  CONTENT["Content<br/>Help and Support, Gallery,<br/>Public Website CMS"]
+  COMM["Communication<br/>Notices and Events,<br/>Notification Engine"]
+  AN["Analytics<br/>Reports and Analytics"]
+
+  FOUND --> PEOPLE
+  PEOPLE --> OPS
+  OPS --> FIN
+  FOUND --> CONTENT
+  FIN --> COMM
+  FIN --> AN
+`;
+const { svg } = await mermaid.render('erd-svg', graph);
+document.getElementById('erd').innerHTML = svg;
+document.querySelectorAll('#erd svg .node rect').forEach(el => el.setAttribute('rx', '8'));
+</script>

@@ -1,7 +1,7 @@
 # Saksham School Management Platform — Project Status
 
 > **Living Document** — Update this file at the end of every work session.
-> Last Updated: 2026-07-18
+> Last Updated: 2026-08-08
 
 ---
 
@@ -25,13 +25,13 @@
 
 | # | Module | Layer | SRS | Design | Backend | Frontend | Tests |
 |---|--------|-------|-----|--------|---------|----------|-------|
-| 1 | Auth & User Management | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
-| 2 | RBAC | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
-| 3 | Audit Logs | Foundation | ✅ | ✅ | 🔄 | ⬜ | ⬜ |
-| 4 | Academic Structure | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 5 | Admissions | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 6 | Student Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 7 | Parent Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 1 | Auth & User Management | Foundation | ✅ | ✅ | ✅ | ⬜ | ⬜ |
+| 2 | RBAC | Foundation | ✅ | ✅ | ✅ | ⬜ | ⬜ |
+| 3 | Audit Logs | Foundation | ✅ | ✅ | ✅ | ⬜ | ⬜ |
+| 4 | Academic Structure | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| 5 | Admissions | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| 6 | Student Management | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| 7 | Parent Management | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
 | 8 | Teacher Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 9 | Attendance | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 10 | Homework & Assignments | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -53,10 +53,13 @@
 
 | File | Description |
 |------|-------------|
+| [SAKSHAM_PROJECT_VISION.md](SAKSHAM_PROJECT_VISION.md) | **Complete project vision** — problem statement, solution, tech stack, all 20 module features, edge cases, security model |
+| [API_TESTING_REFERENCE.md](API_TESTING_REFERENCE.md) | Full JSON request/response payloads & testing guide for all APIs |
 | [foundation_srs.md](phase0_phase1/foundation_srs.md) | Phase 0 & Phase 1 SRS for Foundation module |
 | [foundation_schema.md](phase2_system_design/foundation_schema.md) | DB Schema for Auth, RBAC, Audit Logs |
 | [foundation_api.md](phase2_system_design/foundation_api.md) | API Contracts for Foundation module |
-| [architecture.md](phase2_system_design/architecture.md) | Overall system architecture |
+| [core_erp_schema.md](phase2_system_design/core_erp_schema.md) | DB Schema for Academic Structure, Admissions, Students |
+| [core_erp_api.md](phase2_system_design/core_erp_api.md) | API Contracts for Academic Structure, Admissions, Students |
 
 ---
 

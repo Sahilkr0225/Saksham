@@ -1,8 +1,15 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { initDb } from './config/initDb';
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import academicRoutes from './routes/academicRoutes';
+import admissionRoutes from './routes/admissionRoutes';
+import studentRoutes from './routes/studentRoutes';
+import parentRoutes from './routes/parentRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -10,16 +17,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ─── Core Middleware ──────────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser()); // Required for reading HTTPOnly refresh_token cookie
 app.use(morgan('dev'));
 
-// Basic health check route
-app.get('/api/v1/health', (req, res) => {
+// ─── Health Check ─────────────────────────────────────────────────────────────
+app.get('/api/v1/health', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'Saksham School Management API is running',
@@ -28,17 +36,43 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
-// Initialize DB and start server
+// ─── API Routes ───────────────────────────────────────────────────────────────
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/academic', academicRoutes);
+app.use('/api/v1/admissions', admissionRoutes);
+app.use('/api/v1/students', studentRoutes);
+app.use('/api/v1/parents', parentRoutes);
+
+// ─── 404 Handler ─────────────────────────────────────────────────────────────
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found`
+  });
+});
+
+// ─── Global Error Handler ────────────────────────────────────────────────────
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error('❌ Unhandled error:', err.message);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { error: err.message })
+  });
+});
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
 const startServer = async () => {
   try {
-    // Run schema migrations and base seedings
     await initDb();
-    
     app.listen(PORT, () => {
       console.log(`🚀 Saksham API Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+      console.log(`📡 Health: http://localhost:${PORT}/api/v1/health`);
+      console.log(`🔐 Auth:   http://localhost:${PORT}/api/v1/auth`);
     });
   } catch (error) {
-    console.error('❌ Failed to start the server due to database initialization failure:', error);
+    console.error('❌ Failed to start the server:', error);
     process.exit(1);
   }
 };
