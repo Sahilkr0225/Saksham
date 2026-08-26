@@ -10,6 +10,10 @@ import academicRoutes from './routes/academicRoutes';
 import admissionRoutes from './routes/admissionRoutes';
 import studentRoutes from './routes/studentRoutes';
 import parentRoutes from './routes/parentRoutes';
+import teacherRoutes from './routes/teacherRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
+import homeworkRoutes from './routes/homeworkRoutes';
+import examRoutes from './routes/examRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +47,10 @@ app.use('/api/v1/academic', academicRoutes);
 app.use('/api/v1/admissions', admissionRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/parents', parentRoutes);
+app.use('/api/v1/teachers', teacherRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/homework', homeworkRoutes);
+app.use('/api/v1/exams', examRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {

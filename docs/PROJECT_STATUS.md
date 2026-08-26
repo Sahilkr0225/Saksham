@@ -32,10 +32,10 @@
 | 5 | Admissions | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
 | 6 | Student Management | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
 | 7 | Parent Management | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
-| 8 | Teacher Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 9 | Attendance | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 10 | Homework & Assignments | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 11 | Exams & Results | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 8 | Teacher Management | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ✅ |
+| 9 | Attendance | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ✅ |
+| 10 | Homework & Assignments | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ✅ |
+| 11 | Exams & Results | Core ERP | ⬜ | ⬜ | ✅ | ⬜ | ✅ |
 | 12 | Fee Management | Core ERP | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 13 | Notices & Events | Communication | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 14 | Notification Engine | Communication | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

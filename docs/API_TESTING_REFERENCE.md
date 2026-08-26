@@ -48,8 +48,14 @@
    - [GET /api/v1/parents/:id](#get-apiv1parentsid)
    - [POST /api/v1/parents/:id/link-student](#post-apiv1parentsidlink-student)
    - [POST /api/v1/parents/:id/unlink-student](#post-apiv1parentsidunlink-student)
-8. [System Health & Status](#8-system-health--status)
-9. [Complete E2E Testing Sequence](#9-complete-e2e-testing-sequence)
+8. [Teacher Management Endpoints (Module 8)](#8-teacher-management-endpoints-module-8)
+   - [GET /api/v1/teachers](#get-apiv1teachers)
+   - [GET /api/v1/teachers/me](#get-apiv1teachersme)
+   - [GET /api/v1/teachers/:id](#get-apiv1teachersid)
+   - [PUT /api/v1/teachers/:id](#put-apiv1teachersid)
+   - [GET /api/v1/teachers/:id/subjects](#get-apiv1teachersidsubjects)
+9. [System Health & Status](#9-system-health--status)
+10. [Complete E2E Testing Sequence](#10-complete-e2e-testing-sequence)
 
 ---
 
@@ -1480,7 +1486,74 @@ Removes the association between a student file and a parent user account.
 
 ---
 
-## 8. System Health & Status
+## 8. Teacher Management Endpoints (Module 8)
+
+### GET `/api/v1/teachers`
+Fetch a paginated list of all users with the `teacher` role and their profile data.
+
+- **Access:** Super Admin, Principal, Office Staff
+- **Query Params:** `?page=1&limit=10&search=doe`
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/teachers?page=1" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### GET `/api/v1/teachers/me`
+Restricted endpoint for currently authenticated teacher to view their own profile.
+
+- **Access:** Teacher only
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/teachers/me" \
+  -H "Authorization: Bearer <teacher_access_token>"
+```
+
+### GET `/api/v1/teachers/:id`
+Retrieves a full profile for a specific teacher.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher (only their own)
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/teachers/<teacher_user_id>" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### PUT `/api/v1/teachers/:id`
+Upserts a specific teacher's extended profile data. 
+
+- **Access:** Super Admin, Principal, Office Staff
+- **Headers:** `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "employee_id": "T-10025",
+  "specialization": "Mathematics, Physics",
+  "qualification": "M.Sc. Physics, B.Ed",
+  "joining_date": "2024-01-15",
+  "address": "Dwarka, New Delhi",
+  "emergency_contact": "9000100020"
+}
+```
+
+### GET `/api/v1/teachers/:id/subjects`
+Gets all subject classes mapped to a specific teacher from `class_subjects`.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher (only their own)
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/teachers/<teacher_user_id>/subjects" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+---
+
+## 9. System Health & Status
 
 ### GET `/api/v1/health`
 - **Access:** Public
@@ -1497,7 +1570,7 @@ Removes the association between a student file and a parent user account.
 
 ---
 
-## 9. Complete E2E Testing Sequence
+## 10. Complete E2E Testing Sequence
 
 Follow this sequence to test the backend API flow from end-to-end:
 
