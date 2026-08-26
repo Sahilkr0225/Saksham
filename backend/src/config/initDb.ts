@@ -19,6 +19,22 @@ const tablesSql = `
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
 
+  CREATE TABLE IF NOT EXISTS teachers (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      employee_id VARCHAR(50) UNIQUE,
+      specialization VARCHAR(100),
+      qualification VARCHAR(255),
+      joining_date DATE,
+      address TEXT,
+      emergency_contact VARCHAR(20),
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_teachers_user_id ON teachers(user_id);
+
+
   CREATE TABLE IF NOT EXISTS roles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(50) NOT NULL UNIQUE,
@@ -183,6 +199,108 @@ const tablesSql = `
   CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(user_id);
   CREATE INDEX IF NOT EXISTS idx_students_class_section ON students(current_class_id, current_section_id);
   CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
+
+  CREATE TABLE IF NOT EXISTS attendance_records (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      type VARCHAR(20) NOT NULL, -- 'daily', 'subject'
+      subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL, -- 'present', 'absent', 'late', 'half_day'
+      remarks TEXT,
+      marked_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS uk_attendance_daily ON attendance_records (student_id, date) WHERE type = 'daily';
+  CREATE UNIQUE INDEX IF NOT EXISTS uk_attendance_subject ON attendance_records (student_id, date, subject_id) WHERE type = 'subject';
+  
+  CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance_records(date);
+  CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance_records(student_id);
+
+  CREATE TABLE IF NOT EXISTS homework_assignments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      section_id UUID REFERENCES sections(id) ON DELETE SET NULL,
+      academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+      assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      due_date DATE NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'active', 'archived'
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_homework_class ON homework_assignments(class_id);
+  CREATE INDEX IF NOT EXISTS idx_homework_due ON homework_assignments(due_date);
+  CREATE INDEX IF NOT EXISTS idx_homework_status ON homework_assignments(status);
+
+  CREATE TABLE IF NOT EXISTS homework_submissions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      homework_id UUID NOT NULL REFERENCES homework_assignments(id) ON DELETE CASCADE,
+      student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      attempt_number INT NOT NULL CHECK (attempt_number IN (1, 2)),
+      status VARCHAR(20) NOT NULL DEFAULT 'submitted', -- 'submitted', 'late', 'graded'
+      remarks TEXT,
+      submitted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE(homework_id, student_id, attempt_number)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_hw_submissions_homework ON homework_submissions(homework_id);
+  CREATE INDEX IF NOT EXISTS idx_hw_submissions_student ON homework_submissions(student_id);
+
+  CREATE TABLE IF NOT EXISTS exams (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title VARCHAR(255) NOT NULL,
+      type VARCHAR(50) NOT NULL, -- 'unit_test', 'mid_term', 'final', 'quiz'
+      academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+      class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'draft', -- 'draft', 'scheduled', 'ongoing', 'completed', 'published'
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_exams_class_ay ON exams(class_id, academic_year_id);
+  CREATE INDEX IF NOT EXISTS idx_exams_status ON exams(status);
+
+  CREATE TABLE IF NOT EXISTS exam_subjects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      exam_id UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+      subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      exam_date DATE NOT NULL,
+      start_time VARCHAR(10),
+      end_time VARCHAR(10),
+      max_marks DECIMAL(5,2) NOT NULL DEFAULT 100.00,
+      pass_marks DECIMAL(5,2) NOT NULL DEFAULT 40.00,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE(exam_id, subject_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_exam_subjects_exam ON exam_subjects(exam_id);
+
+  CREATE TABLE IF NOT EXISTS exam_marks (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      exam_subject_id UUID NOT NULL REFERENCES exam_subjects(id) ON DELETE CASCADE,
+      student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      marks_obtained DECIMAL(5,2),
+      is_absent BOOLEAN NOT NULL DEFAULT FALSE,
+      remarks TEXT,
+      graded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      UNIQUE(exam_subject_id, student_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_exam_marks_subject ON exam_marks(exam_subject_id);
+  CREATE INDEX IF NOT EXISTS idx_exam_marks_student ON exam_marks(student_id);
 `;
 
 const seedRolesSql = `

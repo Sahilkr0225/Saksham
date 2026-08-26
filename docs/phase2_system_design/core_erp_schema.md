@@ -93,6 +93,19 @@ erDiagram
         timestamp updated_at
     }
 
+    teachers {
+        uuid id PK
+        uuid user_id FK
+        varchar employee_id UK
+        varchar specialization
+        varchar qualification
+        date joining_date
+        text address
+        varchar emergency_contact
+        timestamp created_at
+        timestamp updated_at
+    }
+
     classes ||--o{ sections : "contains"
     classes ||--o{ class_subjects : "has"
     subjects ||--o{ class_subjects : "allocated in"
