@@ -318,9 +318,9 @@ const seedRolesSql = `
 const seedSuperAdmin = async () => {
   const bcrypt = await import('bcryptjs');
 
-  const name     = 'Sahil Kumar';
-  const email    = 'sahil@gmail.com';
-  const password = 'Password@1234';
+    const name = 'Admin';
+    const email = 'admin@gmail.com';
+    const password = 'Saksham_developer@1234';
 
   // Check if super admin already exists
   const existing = await pool.query(
