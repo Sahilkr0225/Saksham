@@ -679,10 +679,12 @@
 .tableScroll {
   overflow-x: auto;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;

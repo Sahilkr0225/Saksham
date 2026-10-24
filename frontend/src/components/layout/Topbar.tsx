@@ -1,14 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, LogOut } from 'lucide-react';
+import { Search, Bell, LogOut, Menu } from 'lucide-react';
 import styles from './Topbar.module.css';
 import { useAuth } from '../../context/AuthContext';
 
 interface TopbarProps {
   title: string;
+  onToggleSidebar?: () => void;
 }
 
-const Topbar: React.FC<TopbarProps> = ({ title }) => {
+const Topbar: React.FC<TopbarProps> = ({ title, onToggleSidebar }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -28,7 +29,17 @@ const Topbar: React.FC<TopbarProps> = ({ title }) => {
 
   return (
     <header className={styles.topbar}>
-      <h1 className={styles.pageTitle}>{title}</h1>
+      <div className={styles.titleContainer}>
+        <button
+          className={styles.menuBtn}
+          onClick={onToggleSidebar}
+          aria-label="Toggle navigation menu"
+          title="Open menu"
+        >
+          <Menu size={20} />
+        </button>
+        <h1 className={styles.pageTitle}>{title}</h1>
+      </div>
 
       <div className={styles.controls}>
         {/* Search */}

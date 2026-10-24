@@ -29,6 +29,21 @@
   .statsGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 640px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .statCard {
+    padding: 16px;
+    gap: 14px;
+    border-radius: 14px;
+  }
+  .quickActions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .statCard {
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(12px);

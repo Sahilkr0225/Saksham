@@ -953,6 +953,22 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .headerActions {
+    width: 100%;
+  }
+  .primaryBtn {
+    width: 100%;
+    justify-content: center;
+  }
+  .cardGrid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
   .formGrid {
     grid-template-columns: 1fr;
   }
@@ -972,3 +988,4 @@
     justify-content: center;
   }
 }
+

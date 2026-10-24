@@ -151,10 +151,12 @@
 .tableWrapper {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
+  min-width: 780px;
   border-collapse: collapse;
   font-size: 0.9rem;
   text-align: left;
@@ -591,3 +593,45 @@
   0%, 100% { opacity: 0.85; }
   50% { opacity: 0.35; }
 }
+
+@media (max-width: 768px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .admitBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .toolbarCard {
+    padding: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .searchBox {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filterGroup {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .selectInput {
+    width: 100%;
+  }
+
+  .clearFiltersBtn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+

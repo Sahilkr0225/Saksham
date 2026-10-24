@@ -310,10 +310,12 @@
 .tableContainer {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dataTable {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.875rem;

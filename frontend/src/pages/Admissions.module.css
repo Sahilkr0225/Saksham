@@ -241,10 +241,12 @@
 .tableWrapper {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
+  min-width: 820px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.88rem;
@@ -986,6 +988,64 @@
 }
 
 @media (max-width: 768px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .primaryBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .statCard {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .statCount {
+    font-size: 1.25rem;
+  }
+
+  .toolbarCard {
+    padding: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .searchBox {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filterGroup {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .selectInput {
+    width: 100%;
+  }
+
+  .clearFiltersBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .formGrid3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -323,10 +323,13 @@
 /* Data Table */
 .tableContainer {
   overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dataTable {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.88rem;

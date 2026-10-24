@@ -13,6 +13,7 @@ import {
   ChevronRight,
   GraduationCap,
   CalendarCheck,
+  X,
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -29,17 +30,38 @@ const navItems = [
   { to: '/notices', icon: <Bell size={20} />, label: 'Notices & Events' },
 ];
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen = false, onCloseMobile }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
-      {/* Brand Logo */}
+    <aside
+      className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${
+        isMobileOpen ? styles.mobileOpen : ''
+      }`}
+    >
+      {/* Brand Logo & Mobile Close */}
       <div className={styles.brand}>
-        <div className={styles.brandIcon}>
-          <GraduationCap size={22} color="#fff" />
+        <div className={styles.brandContent}>
+          <div className={styles.brandIcon}>
+            <GraduationCap size={22} color="#fff" />
+          </div>
+          {!collapsed && <span className={styles.brandName}>Saksham</span>}
         </div>
-        {!collapsed && <span className={styles.brandName}>Saksham</span>}
+
+        {/* Close button visible only on mobile drawer */}
+        <button
+          className={styles.mobileCloseBtn}
+          onClick={onCloseMobile}
+          aria-label="Close navigation"
+          title="Close navigation"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -49,6 +71,7 @@ const Sidebar: React.FC = () => {
             key={item.to}
             to={item.to}
             end={item.to === '/dashboard'}
+            onClick={onCloseMobile}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.active : ''}`
             }
@@ -62,7 +85,7 @@ const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Collapse Toggle */}
+      {/* Collapse Toggle (Desktop only) */}
       <button
         className={styles.collapseBtn}
         onClick={() => setCollapsed(!collapsed)}
