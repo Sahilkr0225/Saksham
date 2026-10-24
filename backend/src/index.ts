@@ -39,12 +39,21 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      allowedOrigins.includes('*') ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.use(express.json());
 app.use(cookieParser()); // Required for reading HTTPOnly refresh_token cookie
