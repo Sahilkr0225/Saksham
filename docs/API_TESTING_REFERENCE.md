@@ -54,16 +54,30 @@
    - [GET /api/v1/teachers/:id](#get-apiv1teachersid)
    - [PUT /api/v1/teachers/:id](#put-apiv1teachersid)
    - [GET /api/v1/teachers/:id/subjects](#get-apiv1teachersidsubjects)
-9. [System Health & Status](#9-system-health--status)
-10. [Complete E2E Testing Sequence](#10-complete-e2e-testing-sequence)
+9. [Student Attendance Endpoints (Module 9)](#9-student-attendance-endpoints-module-9)
+   - [POST /api/v1/attendance](#post-apiv1attendance)
+   - [GET /api/v1/attendance/class/:classId](#get-apiv1attendanceclassclassid)
+   - [GET /api/v1/attendance/student/:studentId](#get-apiv1attendancestudentstudentid)
+10. [Homework & Assignments Endpoints (Module 10)](#10-homework--assignments-endpoints-module-10)
+    - [POST /api/v1/homework](#post-apiv1homework)
+    - [GET /api/v1/homework](#get-apiv1homework)
+    - [GET /api/v1/homework/:homeworkId](#get-apiv1homeworkhomeworkid)
+    - [PATCH /api/v1/homework/:homeworkId](#patch-apiv1homeworkhomeworkid)
+    - [DELETE /api/v1/homework/:homeworkId](#delete-apiv1homeworkhomeworkid)
+    - [GET /api/v1/homework/my](#get-apiv1homeworkmy)
+    - [POST /api/v1/homework/:homeworkId/submit](#post-apiv1homeworkhomeworkidsubmit)
+    - [GET /api/v1/homework/:homeworkId/submissions](#get-apiv1homeworkhomeworkidsubmissions)
+    - [PATCH /api/v1/homework/submissions/:submissionId](#patch-apiv1homeworksubmissionssubmissionid)
+11. [Complete E2E Testing Sequence](#11-complete-e2e-testing-sequence)
+12. [Automated Backend Test Suites](#12-automated-backend-test-suites)
 
 ---
 
 ## 1. Environment & Global Setup
 
 ### Default Super Admin Credentials (Seeded on server start):
-- **Email:** `sahil@gmail.com`
-- **Password:** `Password@1234`
+- **Email:** `admin@gmail.com`
+- **Password:** `Saksham_developer@1234`
 
 ### Standard Response Envelope
 All API endpoints return JSON responses using this envelope:
@@ -106,8 +120,8 @@ Authenticates a user and returns a 15-minute Access Token while setting a 7-day 
 #### Request Body
 ```json
 {
-  "email": "sahil@gmail.com",
-  "password": "Password@1234"
+  "email": "admin@gmail.com",
+  "password": "Saksham_developer@1234"
 }
 ```
 
@@ -115,7 +129,7 @@ Authenticates a user and returns a 15-minute Access Token while setting a 7-day 
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"sahil@gmail.com","password":"Password@1234"}'
+  -d '{"email":"admin@gmail.com","password":"Saksham_developer@1234"}'
 ```
 
 #### Response (200 OK)
@@ -126,8 +140,8 @@ curl -X POST http://localhost:5000/api/v1/auth/login \
   "data": {
     "user": {
       "id": "c1f7b8a2-9b21-4f12-b91e-3f8d229a1b02",
-      "name": "Sahil Kumar",
-      "email": "sahil@gmail.com",
+      "name": "Admin",
+      "email": "admin@gmail.com",
       "role": "super_admin",
       "must_change_password": false
     },
@@ -158,8 +172,8 @@ curl -X GET http://localhost:5000/api/v1/auth/me \
   "data": {
     "user": {
       "id": "c1f7b8a2-9b21-4f12-b91e-3f8d229a1b02",
-      "name": "Sahil Kumar",
-      "email": "sahil@gmail.com",
+      "name": "Admin",
+      "email": "admin@gmail.com",
       "phone": null,
       "avatar_url": null,
       "is_active": true,
@@ -245,7 +259,7 @@ Triggers password reset request. Outputs simulated dev OTP `123456` in console l
 #### Request Body
 ```json
 {
-  "email": "sahil@gmail.com"
+  "email": "admin@gmail.com"
 }
 ```
 
@@ -268,7 +282,7 @@ Resets user password using the OTP code (`123456` in development mode).
 #### Request Body
 ```json
 {
-  "email": "sahil@gmail.com",
+  "email": "admin@gmail.com",
   "otp": "123456",
   "new_password": "ResetPassword@2026"
 }
@@ -741,7 +755,7 @@ curl -X POST http://localhost:5000/api/v1/academic/sections \
 ---
 
 ### POST `/api/v1/academic/subjects`
-Creates a subject. `type` can be `core` or `elective`.
+Creates a subject. `type` can be `core`, `elective`, `lab`, or `activity`.
 
 - **Access:** Protected (`super_admin`, `principal`)
 
@@ -1094,7 +1108,15 @@ curl -X PATCH http://localhost:5000/api/v1/admissions/d1e2f3a4-b5c6-7d8e-9f0a-11
 ---
 
 ### POST `/api/v1/admissions/:id/enroll`
-Converts an **approved** admission into a student. Creates a user account (role: `student`) with a temporary password and a `students` record. Marks the application as `enrolled`.
+Converts an **approved** admission application into an active student. Atomically executes the following within a single transaction:
+1. Validates section capacity and checks roll number uniqueness with `FOR UPDATE` concurrency locking.
+2. Generates dedicated student credentials (`<clean_admission_no>@student.saksham.edu`) and creates student `users` and `user_roles` records.
+3. Automatically provisions or reuses the parent account based on `parent_email`:
+   - **Case A (New Parent):** Automatically creates a parent user account (`role = 'parent'`), generates a temporary password, and links student via `students.parent_user_id = parent.id`.
+   - **Case B (Existing Parent):** Reuses the existing account safely without resetting credentials or modifying details, and links the student ward.
+   - **Case C (Incompatible Role):** Returns `409 Conflict` if the email belongs to an account with a non-parent role (e.g., teacher, office staff).
+   - **Case D (Deactivated Parent):** Returns `409 Conflict` if the existing parent account is deactivated or deleted.
+4. Marks application status as `enrolled` and emits audit logs for `admission_applications`, `users`, and `students`.
 
 - **Access:** Protected (`super_admin`, `principal`)
 - **Prerequisite:** Application status must be `approved`
@@ -1114,14 +1136,14 @@ Converts an **approved** admission into a student. Creates a user account (role:
 curl -X POST http://localhost:5000/api/v1/admissions/d1e2f3a4-b5c6-7d8e-9f0a-112233445566/enroll \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"roll_number": "10A-01", "blood_group": "O+"}'
+  -d '{"current_section_id": "b8c9d0e1-f2a3-4b5c-6d7e-889900112233", "roll_number": "10A-01"}'
 ```
 
 #### Response (201 Created)
 ```json
 {
   "success": true,
-  "message": "Applicant 'Riya Sharma' enrolled successfully as a student",
+  "message": "Applicant 'Riya Sharma' enrolled successfully. Parent account provisioned and ward linked.",
   "data": {
     "student": {
       "id": "e2f3a4b5-c6d7-8e9f-0a1b-223344556677",
@@ -1136,9 +1158,16 @@ curl -X POST http://localhost:5000/api/v1/admissions/d1e2f3a4-b5c6-7d8e-9f0a-112
       "blood_group": "O+",
       "status": "active"
     },
-    "user_email": "rahul.sharma@gmail.com",
+    "user_email": "stu2026123456@student.saksham.edu",
     "temporary_password": "Temp@A1B2C3D4",
-    "admission_number": "STU-2026-123456"
+    "admission_number": "STU-2026-123456",
+    "parent_account": {
+      "id": "a343946e-d144-42d9-a2ed-d77a3ba267d5",
+      "name": "Rajesh Sharma",
+      "email": "rajesh.sharma@gmail.com",
+      "temporary_password": "Temp@P8Q9R0S1",
+      "is_new_account": true
+    }
   }
 }
 ```
@@ -1412,15 +1441,98 @@ curl -X PATCH http://localhost:5000/api/v1/students/e2f3a4b5-c6d7-8e9f-0a1b-2233
 }
 ```
 
+#### Error Responses (Verified Remediation Outcomes)
+
+##### Malformed UUID Route Parameter (400 Bad Request)
+Returned when `:id` is not a valid UUID format (tested on GET, PUT, PATCH status, and PATCH section):
+```json
+{
+  "success": false,
+  "message": "Invalid id parameter: must be a valid UUID",
+  "data": {
+    "errors": [
+      {
+        "field": "id",
+        "message": "Invalid UUID format"
+      }
+    ]
+  }
+}
+```
+
+##### Nonexistent UUID Parameter (404 Not Found)
+Returned when `:id` is a valid UUID but does not match any existing record:
+```json
+{
+  "success": false,
+  "message": "Student record not found"
+}
+```
+
+##### Roll-Number Uniqueness Conflict (409 Conflict)
+Returned when attempting to assign a roll number already held by another active student in the same section (enforced via database index `uk_students_active_section_roll` and transactional controller checks):
+```json
+{
+  "success": false,
+  "message": "Roll number '10A-08' is already assigned to another active student in this section"
+}
+```
+
+##### Section Capacity Exceeded (409 Conflict)
+Returned when assigning a student to a section that has reached its maximum configured capacity (guarded by `SELECT ... FOR UPDATE` row locks inside the transaction):
+```json
+{
+  "success": false,
+  "message": "Section has reached its maximum capacity of 30 students"
+}
+```
+
 ---
 
 ## 7. Parent Management Endpoints (Module 7)
 
 ### GET `/api/v1/parents`
-Retrieve a paginated list of all users with the `parent` role.
+Retrieve a paginated list of all users with the `parent` role alongside dataset-wide global metrics.
 
 - **Access:** Super Admin, Principal, Office Staff
 - **Query Params:** `?page=1&limit=10&search=john`
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Parents retrieved successfully",
+  "data": {
+    "parents": [
+      {
+        "id": "c1f7b8a2-9b21-4f12-b91e-3f8d229a1b02",
+        "name": "Rajesh Sharma",
+        "email": "rajesh.sharma@example.com",
+        "phone": "9876543210",
+        "avatar_url": null,
+        "is_active": true,
+        "created_at": "2026-10-21T10:00:00.000Z",
+        "linked_students_count": 2
+      }
+    ],
+    "pagination": {
+      "total": 45,
+      "page": 1,
+      "limit": 10,
+      "pages": 5
+    },
+    "counts": {
+      "total": 45,
+      "active": 42,
+      "inactive": 3,
+      "parents_with_wards": 38,
+      "parents_without_wards": 7,
+      "total_linked_students": 52,
+      "unlinked_students": 14
+    }
+  }
+}
+```
 
 #### Example `curl`
 ```bash
@@ -1441,6 +1553,8 @@ curl -X GET "http://localhost:5000/api/v1/parents/me/children" \
 
 ### GET `/api/v1/parents/:id`
 Get full details of a specific parent account, including a nested list of all their linked children.
+- Strict UUID validation enforced: returns `400 Bad Request` if `:id` is not a valid UUID.
+- RBAC boundary: Parents may only view their own record (`:id === caller.userId`); cross-parent viewing returns `403 Forbidden`.
 
 - **Access:** Super Admin, Principal, Office Staff, Parent (only their own ID)
 
@@ -1452,6 +1566,10 @@ curl -X GET "http://localhost:5000/api/v1/parents/<parent_user_id>" \
 
 ### POST `/api/v1/parents/:id/link-student`
 Links an existing student file to a parent user account.
+- **Transaction & Concurrency Safety:** Enforces `FOR UPDATE` row lock on `students` table to prevent race condition overwrites.
+- **Single-Primary-Parent Integrity:** Rejects with `409 Conflict` if the student is already linked to another parent account.
+- **Idempotency:** Returns `200 OK` if the student is already linked to the target parent.
+- **Audit:** Automatically generates a structured `UPDATE` record in `audit_logs`.
 
 - **Access:** Super Admin, Principal, Office Staff
 - **Headers:** `Content-Type: application/json`
@@ -1460,6 +1578,29 @@ Links an existing student file to a parent user account.
 ```json
 {
   "student_id": "<student_uuid>"
+}
+```
+
+#### Response (200 OK - Link Succeeded)
+```json
+{
+  "success": true,
+  "message": "Student linked to parent successfully",
+  "data": {
+    "student": {
+      "id": "<student_uuid>",
+      "name": "Aarav Sharma",
+      "parent_user_id": "<parent_user_id>"
+    }
+  }
+}
+```
+
+#### Response (409 Conflict - Already Linked)
+```json
+{
+  "success": false,
+  "message": "Student is already linked to another parent account. Please unlink them first before reassigning."
 }
 ```
 
@@ -1472,7 +1613,9 @@ curl -X POST "http://localhost:5000/api/v1/parents/<parent_user_id>/link-student
 ```
 
 ### POST `/api/v1/parents/:id/unlink-student`
-Removes the association between a student file and a parent user account.
+Removes the association between a student file and a parent user account by setting `parent_user_id = NULL`.
+- **Non-destructive:** Does not delete or mutate any other properties of the student record.
+- **Audit:** Records an `UPDATE` event in `audit_logs`.
 
 - **Access:** Super Admin, Principal, Office Staff
 - **Headers:** `Content-Type: application/json`
@@ -1481,6 +1624,20 @@ Removes the association between a student file and a parent user account.
 ```json
 {
   "student_id": "<student_uuid>"
+}
+```
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Student unlinked from parent successfully",
+  "data": {
+    "student": {
+      "id": "<student_uuid>",
+      "parent_user_id": null
+    }
+  }
 }
 ```
 
@@ -1553,7 +1710,107 @@ curl -X GET "http://localhost:5000/api/v1/teachers/<teacher_user_id>/subjects" \
 
 ---
 
-## 9. System Health & Status
+## 9. Student Attendance Endpoints (Module 9)
+
+### POST `/api/v1/attendance`
+Records or updates daily bulk attendance for students in a class.
+- **Idempotency & Concurrency:** Protected by partial unique index `uk_attendance_daily (student_id, date) WHERE type = 'daily'`. Overwrite submissions update existing status, remarks, and `marked_by` without generating duplicate records.
+- **Audit:** Automatically logs an `UPDATE` record in `audit_logs` capturing class ID, date, type, and record count.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Headers:** `Authorization: Bearer <access_token>`, `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "class_id": "f47ac10b-58cc-4372-a567-0e02b2c3d4e5",
+  "academic_year_id": "a1b2c3d4-e5f6-7890-abcd-112233445566",
+  "date": "2026-10-22",
+  "type": "daily",
+  "records": [
+    {
+      "student_id": "9118de4e-4e17-4490-9db0-b2de5c2e22bd",
+      "status": "present",
+      "remarks": "On time"
+    },
+    {
+      "student_id": "c1f7b8a2-9b21-4f12-b91e-3f8d229a1b02",
+      "status": "absent",
+      "remarks": "Sick leave"
+    }
+  ]
+}
+```
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Attendance marked successfully",
+  "data": {
+    "records": [
+      {
+        "id": "19b45627-2c93-4a0b-8527-bb1a6ea9f0f1",
+        "student_id": "9118de4e-4e17-4490-9db0-b2de5c2e22bd",
+        "academic_year_id": "a1b2c3d4-e5f6-7890-abcd-112233445566",
+        "date": "2026-10-22T00:00:00.000Z",
+        "type": "daily",
+        "subject_id": null,
+        "status": "present",
+        "remarks": "On time",
+        "marked_by": "80fd8888-9f17-4860-afbf-338bfa79f060",
+        "created_at": "2026-10-22T10:00:00.000Z",
+        "updated_at": "2026-10-22T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### GET `/api/v1/attendance/class/:classId`
+Fetches eligible active student roster for a class with their recorded attendance status for the specified date.
+- **Parameters & Query:**
+  - `classId` (UUID, required param)
+  - `date` (YYYY-MM-DD, required query param)
+  - `type` (optional, default `daily`)
+  - `section_id` (optional, UUID — filters cohort to specific section)
+- **Validation:** Strict UUID validation enforced on `classId`; returns `400 Bad Request` if invalid.
+- **Roster Semantics:** Unrecorded students return with `status: null` (clearly distinguished from `absent`).
+
+- **Access:** Super Admin, Principal, Teacher
+- **Headers:** `Authorization: Bearer <access_token>`
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/attendance/class/<class_uuid>?date=2026-10-22&type=daily&section_id=<section_uuid>" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### GET `/api/v1/attendance/student/:studentId`
+Retrieves chronological attendance log for an individual student.
+- **Parameters & Query:**
+  - `studentId` (UUID, required param)
+  - `start_date` (optional, `YYYY-MM-DD`)
+  - `end_date` (optional, `YYYY-MM-DD`)
+  - `type` (optional, default `daily`)
+- **RBAC & Privacy Boundaries:**
+  - Super Admin, Principal, Teacher: can view all students.
+  - Student: can only view their own attendance record (`students.user_id = caller.id`).
+  - Parent: can only view attendance of their linked child (`students.parent_user_id = caller.id`).
+  - Cross-access returns `403 Forbidden`.
+
+- **Access:** Super Admin, Principal, Teacher, Parent (ward only), Student (own only)
+- **Headers:** `Authorization: Bearer <access_token>`
+
+#### Example `curl`
+```bash
+curl -X GET "http://localhost:5000/api/v1/attendance/student/<student_uuid>?type=daily" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+---
+
+## 10. System Health & Status
 
 ### GET `/api/v1/health`
 - **Access:** Public
@@ -1570,13 +1827,194 @@ curl -X GET "http://localhost:5000/api/v1/teachers/<teacher_user_id>/subjects" \
 
 ---
 
-## 10. Complete E2E Testing Sequence
+## 11. Notices & Events Endpoints (Module 13)
+
+### POST `/api/v1/notices`
+Creates a new notice/announcement with audience targeting.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher
+- **Headers:** `Authorization: Bearer <access_token>`, `Content-Type: application/json`
+
+#### Request Body
+```json
+{
+  "title": "School Reopening Notice",
+  "content": "The school will reopen on Monday after winter break.",
+  "type": "general",
+  "priority": "high",
+  "target_audience": "all",
+  "published": true
+}
+```
+
+### GET `/api/v1/notices`
+Retrieve a paginated list of all notices.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher
+- **Query Params:** `?page=1&limit=50&target_audience=class`
+
+### GET `/api/v1/notices/my`
+Retrieve a filtered list of published notices meant for the authenticated user (based on their roles or class assignments).
+
+- **Access:** Student, Parent
+
+### PATCH `/api/v1/notices/:id`
+Updates notice details or publishes a draft notice.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher
+- **Headers:** `Content-Type: application/json`
+
+### PATCH `/api/v1/notices/:id/pin`
+Toggles the priority of a notice between normal and high.
+
+- **Access:** Super Admin, Principal
+- **Headers:** `Content-Type: application/json`
+- **Request Body:** `{ "action": "pin" }`
+
+### DELETE `/api/v1/notices/:id`
+Soft deletes a notice.
+
+- **Access:** Super Admin, Principal, Office Staff, Teacher
+
+### POST `/api/v1/notices/events`
+Creates a calendar event.
+
+- **Access:** Super Admin, Principal, Office Staff
+
+#### Request Body
+```json
+{
+  "title": "Annual Sports Day",
+  "description": "Annual inter-school sports competition",
+  "event_type": "sports_day",
+  "start_date": "2026-12-15",
+  "end_date": "2026-12-17",
+  "target_audience": "all"
+}
+```
+
+### GET `/api/v1/notices/events`
+Retrieves timeline of calendar events. Open to all authenticated users.
+
+- **Access:** Authenticated Users
+- **Query Params:** `?start_date=2026-12-01&end_date=2026-12-31`
+
+---
+
+## 10. Homework & Assignments Endpoints (Module 10)
+
+### POST `/api/v1/homework`
+Creates a new homework assignment tied to academic year, class, section, and subject.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <access_token>`
+- **Request Body:**
+```json
+{
+  "title": "Chapter 4 - Geometry Problem Set",
+  "description": "Complete exercises 1 to 12 from page 88.",
+  "class_id": "8bbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "section_id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+  "subject_id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+  "academic_year_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "due_date": "2026-11-05"
+}
+```
+- **Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Homework created successfully",
+  "data": {
+    "homework": {
+      "id": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+      "title": "Chapter 4 - Geometry Problem Set",
+      "status": "active",
+      "due_date": "2026-11-05T00:00:00.000Z"
+    }
+  }
+}
+```
+
+### GET `/api/v1/homework`
+Retrieves directory of assignments with optional multi-criteria filters.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Query Params:** `?academic_year_id=UUID&class_id=UUID&section_id=UUID&subject_id=UUID&status=active|archived|all&search=term`
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "homework": [
+      {
+        "id": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+        "title": "Chapter 4 - Geometry Problem Set",
+        "class_name": "Grade 10",
+        "section_name": "A",
+        "subject_name": "Mathematics",
+        "teacher_name": "John Doe",
+        "due_date": "2026-11-05T00:00:00.000Z",
+        "status": "active",
+        "submission_count": 18,
+        "submitted_students_count": 18,
+        "graded_count": 12,
+        "total_students": 24
+      }
+    ]
+  }
+}
+```
+
+### GET `/api/v1/homework/:homeworkId`
+Retrieves single assignment details and statistics.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Response (200 OK):** Returns single homework object.
+
+### PATCH `/api/v1/homework/:homeworkId`
+Updates assignment title, instructions, due date, or archive status.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Request Body:** `{ "title": "Updated Title", "due_date": "2026-11-10", "status": "active" }`
+
+### DELETE `/api/v1/homework/:homeworkId`
+Permanently deletes an assignment and associated submissions.
+
+- **Access:** Super Admin, Principal
+
+### GET `/api/v1/homework/my`
+Retrieves student's active assignments for their enrolled class & section.
+
+- **Access:** Student
+
+### POST `/api/v1/homework/:homeworkId/submit`
+Enrolled student submits work (max 2 attempts).
+
+- **Access:** Student
+- **Request Body:** `{ "remarks": "My completed solution for questions 1-12" }`
+- **Response (201 Created):** Attempt 1 or 2 recorded with `status: 'submitted'` or `status: 'late'`.
+
+### GET `/api/v1/homework/:homeworkId/submissions`
+Retrieves all student submission attempts for an assignment.
+
+- **Access:** Super Admin, Principal, Teacher
+
+### PATCH `/api/v1/homework/submissions/:submissionId`
+Teacher evaluates / grades a submission with status and qualitative remarks.
+
+- **Access:** Super Admin, Principal, Teacher
+- **Request Body:** `{ "status": "graded", "remarks": "Excellent work! Accurate solutions." }`
+
+---
+
+## 11. Complete E2E Testing Sequence
 
 Follow this sequence to test the backend API flow from end-to-end:
 
 1. **Start Dev Server:** `cd backend && npm run dev`
 2. **Health Check:** `GET /api/v1/health`
-3. **Login as Super Admin:** `POST /api/v1/auth/login` with `sahil@gmail.com` / `Password@1234` ➔ save returned `access_token`.
+3. **Login as Super Admin:** `POST /api/v1/auth/login` with `admin@gmail.com` / `Saksham_developer@1234` ➔ save returned `access_token`.
 4. **Fetch Profile:** `GET /api/v1/auth/me` with `Authorization: Bearer <access_token>`.
 5. **Create Academic Year:** `POST /api/v1/academic/academic-years` (`2025-2026`).
 6. **Create Class & Section:** `POST /api/v1/academic/classes` (`Grade 10`) ➔ `POST /api/v1/academic/sections` (`Section A`).
@@ -1589,4 +2027,26 @@ Follow this sequence to test the backend API flow from end-to-end:
 13. **Fetch Student Profile:** `GET /api/v1/students/:id` using the student `id`.
 14. **Update Student Details:** `PUT /api/v1/students/:id` to add roll number, emergency contact, or blood group details.
 15. **Query Updated Student:** Verify the updated details are correctly persisted.
+
+---
+
+## 12. Automated Backend Test Suites
+
+The backend includes standalone automated end-to-end and regression test suites in `backend/src/`:
+
+| Test Suite | Purpose | Execution Command |
+|------------|---------|-------------------|
+| **Student Remediation & Regression** | Verifies route UUID validation (400/404), roll-number uniqueness (409), section capacity limits (409), and concurrency-safe locking with automated cleanup. | `npx ts-node src/test_student_remediation.ts` |
+| **Student E2E Flow** | Core student onboarding, query, update, and status flow. | `npx ts-node src/test_student_flow.ts` |
+| **Fee Management Flow** | Fee structures, heads, invoices, and payments. | `npx ts-node src/test_fee_flow.ts` |
+| **Notices & Events Flow** | Notice authoring, audience targeting, pins, and calendar events. | `npx ts-node src/test_notice_flow.ts` |
+| **Attendance Flow** | Daily and subject-wise attendance marking. | `npx ts-node src/test_attendance_flow.ts` |
+| **Homework Flow** | Homework assignments, attempts, capping, and submission grading. | `npx ts-node src/test_homework_flow.ts` |
+| **Homework Frontend Flow & API Verification** | Verifies directory query with multi-criteria filters, search, assignment creation, single detail inspection, PATCH title/description updates, student attempt lifecycle (1 & 2), submission retrieval, teacher qualitative grading/remarks update, active/archived toggling, RBAC student write rejection, and clean deletion. | `npx ts-node src/test_homework_frontend_flow.ts` |
+| **Exam Flow** | Exam creation, grading, and report card generation. | `npx ts-node src/test_exam_flow.ts` |
+| **Teacher Management Flow & Role Boundary** | Verifies directory query, debounce/pagination, teacher onboarding, profile upsert, detail & subject allocation retrieval, teacher self-view, 403 cross-access prevention, and status toggles. | `npx ts-node src/test_teacher_frontend_flow.ts` |
+| **Parent Management Flow & Ward Linkage** | Verifies directory listing & debounced search, parent onboarding & one-time credentials, profile retrieval, identity update, student ward linking & unlinking, parent self-children view, 403 cross-access boundary, and status toggle RBAC. | `npx ts-node src/test_parent_frontend_flow.ts` |
+| **Parent Management Acceptance Audit & Concurrency** | Verifies route UUID validation (400 vs 500), global directory KPI metric aggregations, single-primary-parent integrity constraint, 409 Conflict rejection on overwrite attempt, idempotent re-linking, transactional `FOR UPDATE` concurrency locking (simultaneous race condition handling), non-destructive unlinking without student record deletion, parent self-view (`/me/children`) and 403 cross-parent access prevention, RBAC status toggle permission matrix, structured audit logging, and isolated fixture cleanup. | `npx ts-node src/test_parent_acceptance_audit.ts` |
+| **Student Attendance Frontend Flow & API Verification** | Verifies class/section roster retrieval, initial unmarked states (`null`), valid status marking (`present`, `absent`, `late`, `half_day`), idempotent upsert overwrites on same date, section filtering, UUID validation (400 rejection), payload validation, and RBAC boundary enforcement (parent 403 write rejection and child privacy protection). | `npx ts-node src/test_attendance_frontend_flow.ts` |
+
 

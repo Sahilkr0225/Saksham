@@ -69,8 +69,8 @@ async function runTests() {
 
     // 2. Login as super_admin
     const adminLogin = await request('POST', '/auth/login', {
-      email: 'sahil@gmail.com',
-      password: 'Password@1234'
+      email: 'admin@gmail.com',
+      password: 'Saksham_developer@1234'
     });
     const adminToken = adminLogin.data.data.access_token;
     console.log(`[2] Admin Login... ✅ Success`);

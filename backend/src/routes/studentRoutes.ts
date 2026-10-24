@@ -8,7 +8,7 @@ import {
 } from '../controllers/studentController';
 import { authenticate } from '../middlewares/auth';
 import { authorize } from '../middlewares/rbac';
-import { validateRequest } from '../middlewares/validate';
+import { validateRequest, validateUUIDParam } from '../middlewares/validate';
 import {
   updateStudentSchema,
   updateStudentStatusSchema,
@@ -29,6 +29,7 @@ router.get(
 router.get(
   '/:id',
   authenticate,
+  validateUUIDParam('id'),
   getStudentById
 );
 
@@ -37,6 +38,7 @@ router.put(
   '/:id',
   authenticate,
   authorize('super_admin', 'principal', 'office_staff'),
+  validateUUIDParam('id'),
   validateRequest(updateStudentSchema),
   updateStudent
 );
@@ -46,6 +48,7 @@ router.patch(
   '/:id/status',
   authenticate,
   authorize('super_admin', 'principal'),
+  validateUUIDParam('id'),
   validateRequest(updateStudentStatusSchema),
   updateStudentStatus
 );
@@ -55,6 +58,7 @@ router.patch(
   '/:id/section',
   authenticate,
   authorize('super_admin', 'principal', 'office_staff'),
+  validateUUIDParam('id'),
   validateRequest(assignStudentSectionSchema),
   assignStudentSection
 );

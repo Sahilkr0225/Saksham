@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth';
 import { authorize } from '../middlewares/rbac';
-import { validateRequest } from '../middlewares/validate';
+import { validateRequest, validateUUIDParam } from '../middlewares/validate';
 import { linkStudentSchema } from '../validators/parentValidator';
 import {
   getParents,
@@ -23,11 +23,17 @@ router.get('/me/children', getMyChildren);
 router.get('/', authorize('super_admin', 'principal', 'office_staff'), getParents);
 
 // Accessible by admins AND the specific parent themselves
-router.get('/:id', authorize('super_admin', 'principal', 'office_staff', 'parent'), getParentById);
+router.get(
+  '/:id',
+  validateUUIDParam('id'),
+  authorize('super_admin', 'principal', 'office_staff', 'parent'),
+  getParentById
+);
 
 // Admin linkage endpoints
 router.post(
   '/:id/link-student',
+  validateUUIDParam('id'),
   authorize('super_admin', 'principal', 'office_staff'),
   validateRequest(linkStudentSchema),
   linkStudent
@@ -35,6 +41,7 @@ router.post(
 
 router.post(
   '/:id/unlink-student',
+  validateUUIDParam('id'),
   authorize('super_admin', 'principal', 'office_staff'),
   validateRequest(linkStudentSchema), // Re-using schema since it only needs student_id
   unlinkStudent

@@ -2,8 +2,8 @@
 ## Complete Project Vision Document
 
 > **Author:** Sahil Kumar  
-> **Last Updated:** 2026-08-12  
-> **Status:** Backend Phase — In Progress (6 of 20 modules complete)
+> **Last Updated:** 2026-10-21  
+> **Status:** Core ERP & Foundation Portals Operational — 13 of 20 Backend Modules Complete, 7 Major Frontend Portals Live, 100% Automated Test Suites Passing
 
 ---
 
@@ -103,16 +103,16 @@ School administration in India (and globally for most mid-size schools) is deepl
 | **cookie-parser** | v1.4 | HTTPOnly cookie parsing for refresh tokens |
 | **dotenv** | v16 | Environment variable management |
 
-### Frontend *(Planned — Phase 5)*
+### Frontend *(Operational Production Stack)*
 | Tool | Purpose |
 |------|---------|
-| **Next.js 14** | React framework with server-side rendering |
-| **TypeScript** | Type-safe frontend development |
-| **TailwindCSS** | Utility-first styling |
-| **Zustand** | Lightweight state management |
-| **React Query (TanStack)** | Server state, caching, optimistic updates |
-| **Axios** | HTTP client with interceptors for token refresh |
-| **Recharts** | Analytics graphs (attendance trends, fee stats) |
+| **React 19 & Vite** | Blazing-fast SPA architecture, instant HMR, optimized production builds |
+| **TypeScript (v5.5)** | Full type safety across components, models, and API response contracts |
+| **Vanilla CSS Modules** | Modern, scoped styling with CSS variables, glassmorphic accents, and zero runtime overhead |
+| **React Router DOM (v7)** | Client-side routing, protected route guards, and URL query state persistence |
+| **Axios** | HTTP client with automatic bearer token attachment and refresh interceptors |
+| **Lucide React** | Consistent, modern iconography across all operational portals |
+| **Context API** | Centralized auth, session, and role state management |
 
 ### Database
 | Decision | Reason |
@@ -138,7 +138,7 @@ School administration in India (and globally for most mid-size schools) is deepl
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        CLIENT LAYER                             │
-│    Browser (Next.js frontend) | Mobile Browser (Responsive)     │
+│     Browser (React + Vite SPA) | Mobile Browser (Responsive)     │
 └──────────────────────────────┬──────────────────────────────────┘
                                │ HTTPS
                                ▼
@@ -198,68 +198,74 @@ Saksham is organized into **20 modules** across 4 layers.
 
 ### 🏗️ Layer 1: Foundation (Modules 1–3)
 
-#### Module 1 — Auth & User Management ✅ Backend Complete
+#### Module 1 — Auth & User Management ✅ Backend & Frontend Complete
 - Email + password login with JWT (15-min access token + 7-day refresh token)
 - Invite-only account creation by Super Admin (no self-registration)
-- Temporary password issued on account creation; forced change on first login
+- Temporary password issued on account creation; one-time reveal in secure UI modal
 - Forgot password via OTP email verification
 - Token rotation — refresh token invalidated on every refresh cycle
-- Account activation / deactivation
+- Account activation / deactivation with status preservation
 - User profile: name, email, phone, avatar, role
 
-#### Module 2 — RBAC (Role-Based Access Control) ✅ Backend Complete
+#### Module 2 — RBAC (Role-Based Access Control) ✅ Backend & Frontend Complete
 - 6 roles: `super_admin`, `principal`, `office_staff`, `teacher`, `parent`, `student`
 - Granular permissions enforced on every API route via `authorize()` middleware
 - Role stored in JWT payload — instant enforcement on every request
-- Super Admin can assign/revoke roles
-- One active role per user at a time (v1)
+- Frontend route guards and role-gated UI actions (buttons, modals, tabs)
+- Super Admin can assign/revoke roles; strict role boundary protection
 
-#### Module 3 — Audit Logs ✅ Backend Complete
-- Every write operation (CREATE, UPDATE, DELETE) automatically logged
+#### Module 3 — Audit Logs ✅ Backend Complete, System-Wide Logging Active
+- Every write operation (CREATE, UPDATE, DELETE, ENROLL) automatically logged in `audit_logs`
 - Each log entry captures: `user_id`, `action`, `resource`, `resource_id`, `old_value`, `new_value`, `ip_address`, `user_agent`, `timestamp`
 - Logs are immutable — no edit or delete allowed
 - Filterable by user, action, resource, date range
-- Viewable by Super Admin and Principal only
+- Accessible to Super Admin and Principal only
 
 ---
 
 ### 📚 Layer 2: Core ERP (Modules 4–20)
 
-#### Module 4 — Academic Structure ✅ Backend Complete
-- Create and manage academic years (set current/active year)
-- Create hierarchical class structure: Classes → Sections (e.g., Grade 10 → Section A, B, C)
+#### Module 4 — Academic Structure ✅ Backend & Frontend Complete
+- Create and manage academic years (set and activate current year with confirmation modal)
+- Create hierarchical class structure: Classes → Sections with capacity constraints
 - Create subjects (core, elective, lab, activity types)
 - Allocate subjects to classes with assigned teacher per academic year
-- View all subjects for a given class/year combination
+- Live frontend UI with full editing, validation, and real-time count updates
 
-#### Module 5 — Admissions ✅ Backend Complete
-- Submit admission applications for prospective students
-- Track application status pipeline: `submitted` → `under_review` → `approved` / `rejected`
-- Approved applicant enrollment: creates a user account + student record in one atomic transaction
-- Returns temporary password for new student login
-- Parent account linked during enrollment flow
+#### Module 5 — Admissions ✅ Backend & Frontend Complete
+- Submit admission applications for prospective students with complete demographic details
+- Track application status pipeline: `submitted` → `under_review` → `approved` / `rejected` → `enrolled`
+- Approved applicant enrollment: creates student user account (`@student.saksham.edu`) and `students` record atomically
+- **Automatic Parent Onboarding:** Automatically provisions parent user account with `'parent'` role (Case A) or safely reuses existing account without password clobber (Case B)
+- Atomically links `students.parent_user_id` to parent account
+- Concurrency protection: `FOR UPDATE` locking on applications and users prevents race collisions
+- Reveals dual student and parent one-time temporary credentials in Modal 5 with direct clipboard copy and directory navigation
 
-#### Module 6 — Student Management ✅ Backend Complete
-- Paginated student list with search (name, email, admission number), filtering (class, section, status)
-- Detailed student profile with user info, class/section details, parent info
+#### Module 6 — Student Management ✅ Backend & Frontend Complete
+- Paginated student list with live search (name, email, admission number), filtering (class, section, status)
+- Detailed student profile drawer with academic info, contact details, and linked parent overview
 - Update student personal details (DOB, blood group, address, emergency contact, roll number)
 - Status management: `active`, `transferred`, `graduated`, `suspended`
-- Class/section assignment and promotion (roll number management)
+- Section capacity enforcement and active roll-number uniqueness verification with transactional locking
 - Self-service: students can only view their own profile; parents can only view their child's profile
 
-#### Module 7 — Parent Management *(Planned)*
-- Dedicated parent profile management
-- Link multiple children to one parent account
-- View aggregated dashboard: all children's attendance, fees, results
-- Parent communication log
+#### Module 7 — Parent Management ✅ Backend & Frontend Complete
+- Dedicated Parent Directory with debounced search and pagination
+- Real-time dataset-wide KPI metric counts (total, active, inactive, parents with wards, linked students, unlinked students)
+- Detailed Parent Profile Drawer with dynamic ward inspection
+- Student linking and unlinking with single-primary-parent enforcement (`students.parent_user_id`)
+- Safe non-destructive student unlinking preserving student history and academic status
+- Direct parent onboarding modal with one-time temporary password reveal
+- Super Admin and Principal account deactivation and exclusive reactivation controls
+- Auto-reflects newly enrolled parents and wards from Admission workflow without manual steps
 
-#### Module 8 — Teacher Management *(Planned)*
-- Teacher profile: qualifications, subject expertise, class assignments
-- Teacher-class-subject allocation management
-- View assigned classes and teaching schedule
-- Leave management (basic)
+#### Module 8 — Teacher Management ✅ Backend & Frontend Complete
+- Dedicated Teacher Directory with search, pagination, and status filters
+- Teacher Profile Drawer with qualifications, contact, and assigned subjects
+- Teacher onboarding modal generating credentials with role `'teacher'`
+- Account activation and deactivation toggle with status preservation
 
-#### Module 9 — Attendance *(Planned)*
+#### Module 9 — Attendance ✅ Backend Complete
 - Daily attendance marking by class teacher (present / absent / late)
 - Subject-wise attendance for subject teachers
 - Real-time attendance dashboard for Principal
@@ -267,13 +273,13 @@ Saksham is organized into **20 modules** across 4 layers.
 - Attendance percentage calculation per student
 - Monthly attendance reports
 
-#### Module 10 — Homework & Assignments *(Planned)*
+#### Module 10 — Homework & Assignments ✅ Backend Complete
 - Teachers post homework per class/subject with due dates and attachment support
 - Students mark homework as completed
 - Parents view pending homework
 - Assignment submissions tracking
 
-#### Module 11 — Exams & Results *(Planned)*
+#### Module 11 — Exams & Results ✅ Backend Complete
 - Create exam schedules (unit test, mid-term, final)
 - Marks entry per student per subject
 - Auto-calculate grade and percentage
@@ -281,15 +287,13 @@ Saksham is organized into **20 modules** across 4 layers.
 - Historical result archive per academic year
 - Result publish flow (draft → reviewed → published)
 
-#### Module 12 — Fee Management *(Planned)*
-- Define fee structures per class per academic year
-- Record fee payments (cash/cheque; online payment in v2)
-- Track pending dues per student
-- Generate fee receipts
-- Automated due date reminders to parents
-- Fee collection analytics for Principal
+#### Module 12 — Fee Management ✅ Backend & Frontend Complete
+- Define fee structures per class per academic year with base tuition and optional components
+- Collect and record fee payments with automated receipt number generation
+- Student fee ledger and assignment tracking
+- Analytics summary KPI cards (total collected, total pending, total assigned)
 
-#### Module 13 — Notices & Events *(Planned)*
+#### Module 13 — Notices & Events ✅ Backend Complete
 - Create announcements with audience targeting (all, specific role, specific class)
 - Event calendar (exams, holidays, sports day, PTM)
 - Pinned/priority notices
@@ -363,11 +367,12 @@ Saksham is organized into **20 modules** across 4 layers.
 
 | Edge Case | Solution |
 |-----------|----------|
-| **Duplicate email during enrollment** | Enrollment flow checks `users` table for existing email before creating account. Returns 409 if already exists. |
-| **Enroll same application twice** | Application status checked: only `approved` applications can be enrolled. After enrollment, status set to `enrolled` — prevents double enrollment. |
-| **Application approval race condition** | Enrollment is wrapped in a PostgreSQL transaction. If any step fails (user creation, student record creation), entire transaction rolls back. |
-| **Parent email same as school staff email** | Separate tables (`students`, `users`) — email uniqueness enforced globally. Parent account created with the same invite flow. |
-| **Enrolling to a class that doesn't exist** | Class ID validated against DB before enrollment. Returns 404 if class not found. |
+| **Parent account auto-provisioning & linking** | Case A automatically provisions a new parent account in `users` (`role = 'parent'`), generates one-time temporary password, and links student via `students.parent_user_id`. |
+| **Existing parent account reuse** | Case B matches existing parent account by normalized email, preserves their existing credentials and profile details without clobber, and links the new ward. |
+| **Incompatible account role collision** | Case C rejects enrollment with `409 Conflict` if the email belongs to an existing staff/teacher user to prevent cross-role boundary corruption. |
+| **Duplicate student login email** | Student user email is dynamically generated as `<cleanAdmNo>@student.saksham.edu`, leaving parent emails unpolluted and eligible for parent onboarding and login. |
+| **Concurrent double-enrollment race condition** | Enrollment handler locks `admission_applications WHERE id = $1 FOR UPDATE` and `users WHERE email = $1 FOR UPDATE` to serialize concurrent requests. Exactly one succeeds; subsequent requests hit `status !== 'approved'` and roll back. |
+| **Section capacity overflow during enrollment** | Section locked with `FOR UPDATE`; capacity is verified against active students before enrollment. If full, returns `409 Conflict` and transaction rolls back atomically. |
 
 ---
 
@@ -377,9 +382,21 @@ Saksham is organized into **20 modules** across 4 layers.
 |-----------|----------|
 | **Student queries another student's profile** | `getStudentById` checks: if role is `student`, `user_id` must match current logged-in user. Returns 403 otherwise. |
 | **Parent queries a child not linked to them** | `parent_user_id` on student record matched against logged-in parent's ID. Returns 403 if mismatch. |
+| **Duplicate roll numbers within active section** | Enforced by partial unique index `uk_students_active_section_roll` and transactional checks before assignment. Returns `409 Conflict`. |
 | **Assigning student to section belonging to different class** | `assignStudentSection` validates `sections.class_id = class_id` before update. Returns 400 if mismatch. |
-| **Graduated student getting marked present** | Status checks in Attendance module (Module 9) will verify `student.status = 'active'` before accepting attendance entry. |
+| **Graduated student getting marked present** | Status checks in Attendance module verify `student.status = 'active'` before accepting attendance entry. |
 | **Bulk class promotion at year-end** | Module 17 (Administration) will have a bulk-promote action: iterates all active students, moves to next class, archives current year data. |
+
+---
+
+### Parent Management
+
+| Edge Case | Solution |
+|-----------|----------|
+| **Single primary parent rule (V1)** | In V1, each student has at most one primary parent (`students.parent_user_id`). Linking an already linked student returns `409 Conflict` unless unlinked first. |
+| **Non-destructive student unlinking** | Unlinking sets `students.parent_user_id = NULL` without deleting or modifying the student record or their academic standing. |
+| **Exclusive account reactivation** | Accounts deactivated by Principal or Super Admin can only be reactivated by Super Admin, strictly preserving executive oversight. |
+| **Global metric aggregation parity** | Parent directory metrics (`counts.total`, `active`, `parents_with_wards`, `total_linked_students`) aggregate live across the whole school database, matching exact database state. |
 
 ---
 
@@ -395,7 +412,7 @@ Saksham is organized into **20 modules** across 4 layers.
 
 ---
 
-### Fee Management *(Module 12 — Planned)*
+### Fee Management *(Module 12)*
 
 | Edge Case | Solution |
 |-----------|----------|
@@ -405,7 +422,7 @@ Saksham is organized into **20 modules** across 4 layers.
 
 ---
 
-### Attendance *(Module 9 — Planned)*
+### Attendance *(Module 9)*
 
 | Edge Case | Solution |
 |-----------|----------|
@@ -416,7 +433,7 @@ Saksham is organized into **20 modules** across 4 layers.
 
 ---
 
-### Exams & Results *(Module 11 — Planned)*
+### Exams & Results *(Module 11)*
 
 | Edge Case | Solution |
 |-----------|----------|

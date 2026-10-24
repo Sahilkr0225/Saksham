@@ -74,8 +74,8 @@ const runTests = async () => {
     // 2. Login as Super Admin
     console.log('\n[2] Logging in as Super Admin...');
     const login = await request('POST', '/auth/login', {
-      email: 'sahil@gmail.com',
-      password: 'Password@1234'
+      email: 'admin@gmail.com',
+      password: 'Saksham_developer@1234'
     });
     console.log(`Status: ${login.status}, Success: ${login.data.success}`);
     if (login.status !== 200 || !login.data.data.access_token) {

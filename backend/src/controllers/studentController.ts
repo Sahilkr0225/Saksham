@@ -146,6 +146,7 @@ export const getStudentById = async (req: Request, res: Response, next: NextFunc
  * Update student registration / personal fields.
  */
 export const updateStudent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { dob, gender, roll_number, blood_group, address, emergency_contact } = req.body;
@@ -153,14 +154,41 @@ export const updateStudent = async (req: Request, res: Response, next: NextFunct
     const ipAddress = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
-    // Fetch existing record
-    const existingResult = await pool.query('SELECT * FROM students WHERE id = $1', [id]);
+    await client.query('BEGIN');
+
+    // Fetch and lock existing record
+    const existingResult = await client.query('SELECT * FROM students WHERE id = $1 FOR UPDATE', [id]);
     if (existingResult.rowCount === 0) {
+      await client.query('ROLLBACK');
       res.status(404).json({ success: false, message: 'Student record not found' });
       return;
     }
 
     const existingStudent = existingResult.rows[0];
+
+    // If roll_number is being set/updated, check uniqueness in student's current section if active
+    const targetRollNumber = roll_number !== undefined ? roll_number : existingStudent.roll_number;
+    if (
+      existingStudent.status === 'active' &&
+      existingStudent.current_section_id &&
+      targetRollNumber !== null &&
+      targetRollNumber !== undefined &&
+      targetRollNumber !== existingStudent.roll_number
+    ) {
+      const conflictCheck = await client.query(
+        `SELECT id FROM students 
+         WHERE current_section_id = $1 AND roll_number = $2 AND status = 'active' AND id != $3`,
+        [existingStudent.current_section_id, targetRollNumber, id]
+      );
+      if ((conflictCheck.rowCount ?? 0) > 0) {
+        await client.query('ROLLBACK');
+        res.status(409).json({
+          success: false,
+          message: `Roll number '${targetRollNumber}' is already assigned to another active student in this section`
+        });
+        return;
+      }
+    }
 
     const query = `
       UPDATE students
@@ -176,7 +204,7 @@ export const updateStudent = async (req: Request, res: Response, next: NextFunct
       RETURNING *
     `;
 
-    const result = await pool.query(query, [
+    const result = await client.query(query, [
       dob || null,
       gender || null,
       roll_number !== undefined ? roll_number : existingStudent.roll_number,
@@ -197,13 +225,25 @@ export const updateStudent = async (req: Request, res: Response, next: NextFunct
       userAgent
     });
 
+    await client.query('COMMIT');
+
     res.status(200).json({
       success: true,
       message: 'Student record updated successfully',
       data: { student: result.rows[0] }
     });
-  } catch (error) {
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    if (error.code === '23505' && error.constraint === 'uk_students_active_section_roll') {
+      res.status(409).json({
+        success: false,
+        message: `Roll number '${req.body.roll_number}' is already assigned to another active student in this section`
+      });
+      return;
+    }
     next(error);
+  } finally {
+    client.release();
   }
 };
 
@@ -212,6 +252,7 @@ export const updateStudent = async (req: Request, res: Response, next: NextFunct
  * Alter the enrollment state of the student file (e.g. transferred, suspended)
  */
 export const updateStudentStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { status, remarks } = req.body;
@@ -219,15 +260,63 @@ export const updateStudentStatus = async (req: Request, res: Response, next: Nex
     const ipAddress = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
-    const existingResult = await pool.query('SELECT status FROM students WHERE id = $1', [id]);
+    await client.query('BEGIN');
+
+    const existingResult = await client.query('SELECT * FROM students WHERE id = $1 FOR UPDATE', [id]);
     if (existingResult.rowCount === 0) {
+      await client.query('ROLLBACK');
       res.status(404).json({ success: false, message: 'Student record not found' });
       return;
     }
 
-    const previousStatus = existingResult.rows[0].status;
+    const student = existingResult.rows[0];
+    const previousStatus = student.status;
 
-    const result = await pool.query(
+    // If reactivating to 'active' from another status, validate section capacity and roll-number uniqueness
+    if (status === 'active' && previousStatus !== 'active' && student.current_section_id) {
+      // 1. Lock section and check capacity
+      const secCheck = await client.query(
+        'SELECT id, capacity FROM sections WHERE id = $1 FOR UPDATE',
+        [student.current_section_id]
+      );
+      if ((secCheck.rowCount ?? 0) > 0) {
+        const section = secCheck.rows[0];
+        if (section.capacity !== null && section.capacity !== undefined) {
+          const countRes = await client.query(
+            `SELECT COUNT(*)::int as count FROM students 
+             WHERE current_section_id = $1 AND status = 'active' AND id != $2`,
+            [student.current_section_id, id]
+          );
+          if (countRes.rows[0].count >= section.capacity) {
+            await client.query('ROLLBACK');
+            res.status(409).json({
+              success: false,
+              message: `Section has reached its maximum capacity of ${section.capacity} students`
+            });
+            return;
+          }
+        }
+      }
+
+      // 2. Check roll number uniqueness
+      if (student.roll_number) {
+        const rollCheck = await client.query(
+          `SELECT id FROM students 
+           WHERE current_section_id = $1 AND roll_number = $2 AND status = 'active' AND id != $3`,
+          [student.current_section_id, student.roll_number, id]
+        );
+        if ((rollCheck.rowCount ?? 0) > 0) {
+          await client.query('ROLLBACK');
+          res.status(409).json({
+            success: false,
+            message: `Roll number '${student.roll_number}' is already assigned to another active student in this section`
+          });
+          return;
+        }
+      }
+    }
+
+    const result = await client.query(
       `UPDATE students
        SET status = $1, updated_at = NOW()
        WHERE id = $2
@@ -246,13 +335,25 @@ export const updateStudentStatus = async (req: Request, res: Response, next: Nex
       userAgent
     });
 
+    await client.query('COMMIT');
+
     res.status(200).json({
       success: true,
       message: `Student status updated to '${status}' successfully`,
       data: { student: result.rows[0] }
     });
-  } catch (error) {
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    if (error.code === '23505' && error.constraint === 'uk_students_active_section_roll') {
+      res.status(409).json({
+        success: false,
+        message: 'Roll number conflict occurred upon status change'
+      });
+      return;
+    }
     next(error);
+  } finally {
+    client.release();
   }
 };
 
@@ -261,6 +362,7 @@ export const updateStudentStatus = async (req: Request, res: Response, next: Nex
  * Promote or transition a student to a different class / section sequence
  */
 export const assignStudentSection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { class_id, section_id, roll_number } = req.body;
@@ -268,32 +370,78 @@ export const assignStudentSection = async (req: Request, res: Response, next: Ne
     const ipAddress = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
-    // Check student existence
-    const existingResult = await pool.query('SELECT * FROM students WHERE id = $1', [id]);
+    await client.query('BEGIN');
+
+    // 1. Check student existence and lock row
+    const existingResult = await client.query('SELECT * FROM students WHERE id = $1 FOR UPDATE', [id]);
     if (existingResult.rowCount === 0) {
+      await client.query('ROLLBACK');
       res.status(404).json({ success: false, message: 'Student record not found' });
       return;
     }
 
     const student = existingResult.rows[0];
 
-    // Validate class
-    const classCheck = await pool.query('SELECT id FROM classes WHERE id = $1', [class_id]);
+    // 2. Validate class
+    const classCheck = await client.query('SELECT id FROM classes WHERE id = $1', [class_id]);
     if (classCheck.rowCount === 0) {
+      await client.query('ROLLBACK');
       res.status(404).json({ success: false, message: 'Class record not found' });
       return;
     }
 
-    // Validate section matches class context if provided
+    // 3. Validate section matches class context if provided and enforce capacity & roll uniqueness
     if (section_id) {
-      const sectionCheck = await pool.query('SELECT id FROM sections WHERE id = $1 AND class_id = $2', [section_id, class_id]);
+      const sectionCheck = await client.query(
+        'SELECT id, capacity FROM sections WHERE id = $1 AND class_id = $2 FOR UPDATE',
+        [section_id, class_id]
+      );
       if (sectionCheck.rowCount === 0) {
+        await client.query('ROLLBACK');
         res.status(400).json({ success: false, message: 'Specified section does not belong to the targeted class' });
         return;
       }
+
+      const section = sectionCheck.rows[0];
+
+      // Enforce section capacity inside transaction
+      if (section.capacity !== null && section.capacity !== undefined) {
+        const countRes = await client.query(
+          `SELECT COUNT(*)::int as count FROM students 
+           WHERE current_section_id = $1 AND status = 'active' AND id != $2`,
+          [section_id, id]
+        );
+        const currentCount = countRes.rows[0].count;
+        if (currentCount >= section.capacity) {
+          await client.query('ROLLBACK');
+          res.status(409).json({
+            success: false,
+            message: `Section has reached its maximum capacity of ${section.capacity} students`
+          });
+          return;
+        }
+      }
+
+      // Enforce roll number uniqueness within section for active students
+      const targetRoll = roll_number !== undefined ? roll_number : student.roll_number;
+      if (targetRoll !== null && targetRoll !== undefined && student.status === 'active') {
+        const rollCheck = await client.query(
+          `SELECT id FROM students 
+           WHERE current_section_id = $1 AND roll_number = $2 AND status = 'active' AND id != $3`,
+          [section_id, targetRoll, id]
+        );
+        if ((rollCheck.rowCount ?? 0) > 0) {
+          await client.query('ROLLBACK');
+          res.status(409).json({
+            success: false,
+            message: `Roll number '${targetRoll}' is already assigned to another active student in this section`
+          });
+          return;
+        }
+      }
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE students
        SET 
          current_class_id = $1,
@@ -324,12 +472,24 @@ export const assignStudentSection = async (req: Request, res: Response, next: Ne
       userAgent
     });
 
+    await client.query('COMMIT');
+
     res.status(200).json({
       success: true,
       message: 'Student assigned to class / section successfully',
       data: { student: result.rows[0] }
     });
-  } catch (error) {
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    if (error.code === '23505' && error.constraint === 'uk_students_active_section_roll') {
+      res.status(409).json({
+        success: false,
+        message: `Roll number '${req.body.roll_number}' is already assigned to another active student in this section`
+      });
+      return;
+    }
     next(error);
+  } finally {
+    client.release();
   }
 };

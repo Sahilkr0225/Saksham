@@ -26,4 +26,23 @@ export const validateRequest = (schema: ZodSchema) => {
     }
   };
 };
+
+export const validateUUIDParam = (paramName: string = 'id') => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const val = req.params[paramName];
+    if (!val || !uuidRegex.test(val)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid ${paramName} parameter: must be a valid UUID`,
+        data: {
+          errors: [{ field: paramName, message: 'Invalid UUID format' }]
+        }
+      });
+      return;
+    }
+    next();
+  };
+};
+
 export default validateRequest;

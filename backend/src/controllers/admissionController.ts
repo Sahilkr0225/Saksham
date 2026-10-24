@@ -268,12 +268,15 @@ export const enrollStudent = async (req: Request, res: Response, next: NextFunct
     const { current_section_id, roll_number, blood_group, emergency_contact } = req.body;
     const adminUserId = (req as any).user?.userId;
 
-    // 1. Validate admission exists and is approved
+    await client.query('BEGIN');
+
+    // 1. Lock and validate admission application inside transaction
     const admissionResult = await client.query(
-      'SELECT * FROM admission_applications WHERE id = $1',
+      'SELECT * FROM admission_applications WHERE id = $1 FOR UPDATE',
       [id]
     );
     if (admissionResult.rowCount === 0) {
+      await client.query('ROLLBACK');
       res.status(404).json({ success: false, message: 'Admission application not found' });
       return;
     }
@@ -281,6 +284,7 @@ export const enrollStudent = async (req: Request, res: Response, next: NextFunct
     const admission = admissionResult.rows[0];
 
     if (admission.status !== 'approved') {
+      await client.query('ROLLBACK');
       res.status(400).json({
         success: false,
         message: `Only approved applications can be enrolled. Current status: '${admission.status}'`
@@ -288,65 +292,201 @@ export const enrollStudent = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // 2. Verify section belongs to the applied class (if provided)
+    // 2. Verify section belongs to the applied class, lock section FOR UPDATE, and check capacity & roll uniqueness
     if (current_section_id) {
       const secCheck = await client.query(
-        'SELECT id FROM sections WHERE id = $1 AND class_id = $2',
+        'SELECT id, capacity FROM sections WHERE id = $1 AND class_id = $2 FOR UPDATE',
         [current_section_id, admission.applied_class_id]
       );
       if (secCheck.rowCount === 0) {
+        await client.query('ROLLBACK');
         res.status(400).json({
           success: false,
           message: 'Specified section does not belong to the applied class'
         });
         return;
       }
+
+      const section = secCheck.rows[0];
+      if (section.capacity !== null && section.capacity !== undefined) {
+        const countRes = await client.query(
+          `SELECT COUNT(*)::int as count FROM students 
+           WHERE current_section_id = $1 AND status = 'active'`,
+          [current_section_id]
+        );
+        if (countRes.rows[0].count >= section.capacity) {
+          await client.query('ROLLBACK');
+          res.status(409).json({
+            success: false,
+            message: `Section has reached its maximum capacity of ${section.capacity} students`
+          });
+          return;
+        }
+      }
+
+      if (roll_number) {
+        const rollCheck = await client.query(
+          `SELECT id FROM students 
+           WHERE current_section_id = $1 AND roll_number = $2 AND status = 'active'`,
+          [current_section_id, roll_number]
+        );
+        if ((rollCheck.rowCount ?? 0) > 0) {
+          await client.query('ROLLBACK');
+          res.status(409).json({
+            success: false,
+            message: `Roll number '${roll_number}' is already assigned to another active student in this section`
+          });
+          return;
+        }
+      }
     }
 
     // 3. Generate student user credentials
-    const tempPassword  = `Temp@${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-    const passwordHash  = await hashPassword(tempPassword);
-    const studentEmail  = admission.parent_email; // Use parent email as student login by default
+    const studentTempPassword = `Temp@${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const studentPasswordHash = await hashPassword(studentTempPassword);
     const admissionNumber = `STU-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    const cleanAdmNo = admissionNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const studentEmail = `${cleanAdmNo}@student.saksham.edu`;
 
-    await client.query('BEGIN');
+    const studentUserResult = await client.query(
+      `INSERT INTO users (name, email, password_hash, is_active, must_change_password)
+       VALUES ($1, $2, $3, TRUE, TRUE)
+       RETURNING id, name, email`,
+      [admission.applicant_name.trim(), studentEmail, studentPasswordHash]
+    );
+    const studentUserId = studentUserResult.rows[0].id;
 
-    // 4. Create user account for student (email = parent_email)
-    //    If account already exists skip creation gracefully
-    let studentUserId: string;
-
-    const existingUser = await client.query(
-      'SELECT id FROM users WHERE email = $1',
-      [studentEmail]
+    // Assign student role
+    const studentRoleResult = await client.query(`SELECT id FROM roles WHERE name = 'student'`);
+    if (studentRoleResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ success: false, message: "System role 'student' not configured" });
+      return;
+    }
+    await client.query(
+      `INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
+       VALUES ($1, $2, $3, TRUE)`,
+      [studentUserId, studentRoleResult.rows[0].id, adminUserId]
     );
 
-    if ((existingUser.rowCount ?? 0) > 0) {
-      studentUserId = existingUser.rows[0].id;
-    } else {
-      const userResult = await client.query(
-        `INSERT INTO users (name, email, password_hash, is_active, must_change_password)
-         VALUES ($1, $2, $3, TRUE, TRUE)
-         RETURNING id`,
-        [admission.applicant_name, studentEmail, passwordHash]
-      );
-      studentUserId = userResult.rows[0].id;
+    // 4. Handle Parent User Account (Lookup / Auto-Onboard / Reuse)
+    const parentEmail = admission.parent_email?.toLowerCase().trim();
+    if (!parentEmail) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ success: false, message: 'Admission application is missing a parent email address' });
+      return;
+    }
 
-      // Assign student role
-      const roleResult = await client.query(`SELECT id FROM roles WHERE name = 'student'`);
+    let parentUserId: string;
+    let parentAccountData: {
+      id: string;
+      name: string;
+      email: string;
+      temporary_password: string | null;
+      is_new_account: boolean;
+    };
+
+    // Check if account already exists with this email (lock FOR UPDATE to prevent concurrency races)
+    const existingUserResult = await client.query(
+      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.deleted_at
+       FROM users u
+       WHERE LOWER(TRIM(u.email)) = $1
+       FOR UPDATE`,
+      [parentEmail]
+    );
+
+    if ((existingUserResult.rowCount ?? 0) > 0) {
+      const existingUser = existingUserResult.rows[0];
+
+      // Check account state rules
+      if (existingUser.deleted_at || !existingUser.is_active) {
+        await client.query('ROLLBACK');
+        res.status(400).json({
+          success: false,
+          message: `The parent account associated with email '${parentEmail}' is deactivated or closed. Please reactivate the account before proceeding with student enrollment.`
+        });
+        return;
+      }
+
+      // Check active roles for this user
+      const rolesResult = await client.query(
+        `SELECT r.name FROM user_roles ur
+         JOIN roles r ON ur.role_id = r.id
+         WHERE ur.user_id = $1 AND ur.is_active = true`,
+        [existingUser.id]
+      );
+      const activeRoles = rolesResult.rows.map((r: any) => r.name);
+
+      if (activeRoles.includes('parent')) {
+        // Case B: Existing valid parent account — reuse without resetting credentials or overwriting profile
+        parentUserId = existingUser.id;
+        parentAccountData = {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          temporary_password: null,
+          is_new_account: false
+        };
+      } else {
+        // Case C: Existing account with an incompatible role
+        await client.query('ROLLBACK');
+        res.status(409).json({
+          success: false,
+          message: `An account with email '${parentEmail}' already exists with role '${activeRoles.join(', ')}' and cannot be used as a parent account. Please provide a distinct parent email address or update the user's role.`
+        });
+        return;
+      }
+    } else {
+      // Case A: New parent account creation
+      const parentTempPassword = `Temp@${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      const parentPasswordHash = await hashPassword(parentTempPassword);
+
+      const newParentResult = await client.query(
+        `INSERT INTO users (name, email, password_hash, phone, is_active, must_change_password)
+         VALUES ($1, $2, $3, $4, TRUE, TRUE)
+         RETURNING id, name, email, phone`,
+        [admission.parent_name.trim(), parentEmail, parentPasswordHash, admission.parent_phone || null]
+      );
+      parentUserId = newParentResult.rows[0].id;
+
+      const parentRoleResult = await client.query(`SELECT id FROM roles WHERE name = 'parent'`);
+      if (parentRoleResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, message: "System role 'parent' not configured" });
+        return;
+      }
+
       await client.query(
         `INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
          VALUES ($1, $2, $3, TRUE)`,
-        [studentUserId, roleResult.rows[0].id, adminUserId]
+        [parentUserId, parentRoleResult.rows[0].id, adminUserId]
       );
+
+      // Audit log for new parent account creation
+      await createAuditLog({
+        userId: adminUserId,
+        action: 'CREATE',
+        resource: 'users',
+        resourceId: parentUserId,
+        newValue: { id: parentUserId, name: admission.parent_name.trim(), email: parentEmail, role: 'parent' }
+      });
+
+      parentAccountData = {
+        id: parentUserId,
+        name: admission.parent_name.trim(),
+        email: parentEmail,
+        temporary_password: parentTempPassword,
+        is_new_account: true
+      };
     }
 
-    // 5. Create student record
+    // 5. Create student record and link to parent account
     const studentResult = await client.query(
       `INSERT INTO students
          (user_id, admission_number, admission_date, dob, gender,
           current_class_id, current_section_id, roll_number,
-          blood_group, emergency_contact, status)
-       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, $8, $9, 'active')
+          blood_group, emergency_contact, parent_user_id, status)
+       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
        RETURNING *`,
       [
         studentUserId,
@@ -357,11 +497,12 @@ export const enrollStudent = async (req: Request, res: Response, next: NextFunct
         current_section_id || null,
         roll_number       || null,
         blood_group       || null,
-        emergency_contact || null
+        emergency_contact || null,
+        parentUserId
       ]
     );
 
-    // 6. Mark admission as enrolled
+    // 6. Mark admission application as enrolled
     await client.query(
       `UPDATE admission_applications
        SET status = 'enrolled', updated_at = NOW()
@@ -369,29 +510,51 @@ export const enrollStudent = async (req: Request, res: Response, next: NextFunct
       [id]
     );
 
+    // Commit atomic transaction
     await client.query('COMMIT');
 
-    // 7. Audit logs
+    // 7. Audit log for admission enrollment
     await createAuditLog({
       userId: adminUserId,
       action: 'ENROLL',
       resource: 'admission_applications',
       resourceId: id,
-      newValue: { status: 'enrolled', student_id: studentResult.rows[0].id }
+      newValue: {
+        status: 'enrolled',
+        student_id: studentResult.rows[0].id,
+        parent_user_id: parentUserId
+      }
     });
 
     res.status(201).json({
       success: true,
-      message: `Applicant '${admission.applicant_name}' enrolled successfully as a student`,
+      message: `Applicant '${admission.applicant_name}' enrolled successfully as a student and linked to parent account`,
       data: {
         student: studentResult.rows[0],
         user_email: studentEmail,
-        temporary_password: (existingUser.rowCount ?? 0) > 0 ? null : tempPassword,
-        admission_number: admissionNumber
+        temporary_password: studentTempPassword,
+        admission_number: admissionNumber,
+        parent_account: parentAccountData
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     await client.query('ROLLBACK');
+    if (error.code === '23505') {
+      if (error.constraint === 'uk_students_active_section_roll') {
+        res.status(409).json({
+          success: false,
+          message: `Roll number '${req.body.roll_number}' is already assigned to another active student in this section`
+        });
+        return;
+      }
+      if (error.constraint === 'users_email_key') {
+        res.status(409).json({
+          success: false,
+          message: 'A user account with this email address was created concurrently. Please retry.'
+        });
+        return;
+      }
+    }
     next(error);
   } finally {
     client.release();
