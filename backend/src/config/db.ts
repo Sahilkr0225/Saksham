@@ -16,8 +16,7 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Unexpected database error on idle client', err);
-  process.exit(-1);
+  console.warn('⚠️ Notice on idle database client (pool will reconnect on next query):', err.message);
 });
 
 export const query = (text: string, params?: any[]) => {

@@ -14,6 +14,25 @@ const hashToken = (token: string): string => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
+const getRefreshCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in ms
+  };
+};
+
+const getClearCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+  };
+};
+
 /**
  * POST /api/v1/auth/login
  * Public authentication route
@@ -76,12 +95,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     await pool.query(updateLoginQuery, [user.id]);
 
     // 7. Set Refresh Token as HTTP-only cookie
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in ms
-    });
+    res.cookie('refresh_token', refreshToken, getRefreshCookieOptions());
 
     // 8. Respond containing custom payload
     res.status(200).json({
@@ -203,12 +217,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     }
 
     // 7. Update Cookie
-    res.cookie('refresh_token', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    res.cookie('refresh_token', newRefreshToken, getRefreshCookieOptions());
 
     res.status(200).json({
       success: true,
@@ -240,11 +249,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     }
 
     // Clear client HTTPOnly cookie
-    res.clearCookie('refresh_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+    res.clearCookie('refresh_token', getClearCookieOptions());
 
     res.status(200).json({
       success: true,
@@ -299,11 +304,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     await pool.query('UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1', [userId]);
 
     // Clear current cookie
-    res.clearCookie('refresh_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+    res.clearCookie('refresh_token', getClearCookieOptions());
 
     res.status(200).json({
       success: true,

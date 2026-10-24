@@ -53,9 +53,14 @@ desktop.ini
 # ===========================
 tmp/
 temp_doc.txt
+scratch/
+test_output.txt
+*.log
 
 # ===========================
 # UPLOADS / MEDIA (runtime)
 # ===========================
 uploads/
 public/uploads/
+landing_demo_cinematic_*.jpg
+

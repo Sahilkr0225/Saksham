@@ -14,16 +14,36 @@ import teacherRoutes from './routes/teacherRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
 import homeworkRoutes from './routes/homeworkRoutes';
 import examRoutes from './routes/examRoutes';
+import feeRoutes from './routes/feeRoutes';
+import noticeRoutes from './routes/noticeRoutes';
+import { validateJwtSecrets } from './utils/auth';
 
 // Load environment variables
 dotenv.config();
+
+// Pre-flight security validation: Require strong, distinct JWT signing secrets
+try {
+  validateJwtSecrets();
+} catch (error: any) {
+  console.error('❌ Server startup aborted due to configuration error:', error.message);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── Core Middleware ──────────────────────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -51,6 +71,8 @@ app.use('/api/v1/teachers', teacherRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/homework', homeworkRoutes);
 app.use('/api/v1/exams', examRoutes);
+app.use('/api/v1/fees', feeRoutes);
+app.use('/api/v1/notices', noticeRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {
