@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth';
 import { authorize } from '../middlewares/rbac';
-import { validateRequest } from '../middlewares/validate';
+import { validateRequest, validateUUIDParam } from '../middlewares/validate';
 import { markBulkAttendanceSchema } from '../validators/attendanceValidator';
 import { markBulkAttendance, getClassAttendance, getStudentAttendance } from '../controllers/attendanceController';
 
@@ -22,6 +22,7 @@ router.post(
 router.get(
   '/class/:classId',
   authorize('super_admin', 'principal', 'teacher'),
+  validateUUIDParam('classId'),
   getClassAttendance
 );
 
@@ -29,6 +30,7 @@ router.get(
 router.get(
   '/student/:studentId',
   authorize('super_admin', 'principal', 'teacher', 'parent', 'student'),
+  validateUUIDParam('studentId'),
   getStudentAttendance
 );
 

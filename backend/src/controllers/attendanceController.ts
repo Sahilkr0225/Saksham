@@ -75,16 +75,18 @@ export const markBulkAttendance = async (req: Request, res: Response) => {
 export const getClassAttendance = async (req: Request, res: Response) => {
   try {
     const { classId } = req.params;
-    const { date, type = 'daily', subject_id } = req.query;
+    const { date, type = 'daily', subject_id, section_id } = req.query;
 
     if (!date) {
       return res.status(400).json({ success: false, message: 'Date is required' });
     }
 
     let query = `
-      SELECT a.id, s.id as student_id, s.roll_number, u.name as student_name, a.status, a.remarks
+      SELECT a.id, s.id as student_id, s.admission_number, s.roll_number, s.current_section_id,
+             sec.name as section_name, u.name as student_name, a.status, a.remarks
       FROM students s
       JOIN users u ON s.user_id = u.id
+      LEFT JOIN sections sec ON s.current_section_id = sec.id
       LEFT JOIN attendance_records a ON s.id = a.student_id AND a.date = $2 AND a.type = $3
     `;
     
@@ -95,7 +97,14 @@ export const getClassAttendance = async (req: Request, res: Response) => {
       queryParams.push(subject_id);
     }
     
-    query += ` WHERE s.current_class_id = $1 AND s.status = 'active' ORDER BY s.roll_number ASC NULLS LAST, u.name ASC`;
+    query += ` WHERE s.current_class_id = $1 AND s.status = 'active'`;
+
+    if (section_id) {
+      query += ` AND s.current_section_id = $${queryParams.length + 1}`;
+      queryParams.push(section_id);
+    }
+
+    query += ` ORDER BY s.roll_number ASC NULLS LAST, u.name ASC`;
 
     const result = await pool.query(query, queryParams);
 
@@ -112,6 +121,21 @@ export const getStudentAttendance = async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;
     const { start_date, end_date, type = 'daily' } = req.query;
+    const userId = (req as any).user?.userId;
+    const userRole = (req as any).user?.role;
+
+    // RBAC: Students can only view their own attendance; Parents can only view their ward's
+    if (userRole === 'student') {
+      const studentOwnerCheck = await pool.query('SELECT user_id FROM students WHERE id = $1', [studentId]);
+      if (studentOwnerCheck.rows.length === 0 || studentOwnerCheck.rows[0].user_id !== userId) {
+        return res.status(403).json({ success: false, message: 'Access denied: You can only view your own attendance' });
+      }
+    } else if (userRole === 'parent') {
+      const parentOwnerCheck = await pool.query('SELECT parent_user_id FROM students WHERE id = $1', [studentId]);
+      if (parentOwnerCheck.rows.length === 0 || parentOwnerCheck.rows[0].parent_user_id !== userId) {
+        return res.status(403).json({ success: false, message: 'Access denied: You can only view attendance for your linked ward' });
+      }
+    }
 
     const queryParams: any[] = [studentId, type];
     let query = `
