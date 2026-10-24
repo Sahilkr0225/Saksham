@@ -1,0 +1,77 @@
+import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Layers,
+  ClipboardList,
+  Users,
+  UserCheck,
+  BookOpen,
+  DollarSign,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
+  CalendarCheck,
+} from 'lucide-react';
+import styles from './Sidebar.module.css';
+
+const navItems = [
+  { to: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+  { to: '/academics', icon: <Layers size={20} />, label: 'Academics' },
+  { to: '/admissions', icon: <ClipboardList size={20} />, label: 'Admissions' },
+  { to: '/students', icon: <GraduationCap size={20} />, label: 'Students' },
+  { to: '/parents', icon: <Users size={20} />, label: 'Parents' },
+  { to: '/teachers', icon: <UserCheck size={20} />, label: 'Teachers' },
+  { to: '/attendance', icon: <CalendarCheck size={20} />, label: 'Attendance' },
+  { to: '/homework', icon: <BookOpen size={20} />, label: 'Homework' },
+  { to: '/fees', icon: <DollarSign size={20} />, label: 'Fee Management' },
+  { to: '/notices', icon: <Bell size={20} />, label: 'Notices & Events' },
+];
+
+const Sidebar: React.FC = () => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+      {/* Brand Logo */}
+      <div className={styles.brand}>
+        <div className={styles.brandIcon}>
+          <GraduationCap size={22} color="#fff" />
+        </div>
+        {!collapsed && <span className={styles.brandName}>Saksham</span>}
+      </div>
+
+      {/* Navigation */}
+      <nav className={styles.nav}>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/dashboard'}
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.active : ''}`
+            }
+          >
+            <span className={styles.navIcon}>{item.icon}</span>
+            {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+            {collapsed && (
+              <span className={styles.tooltip}>{item.label}</span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Collapse Toggle */}
+      <button
+        className={styles.collapseBtn}
+        onClick={() => setCollapsed(!collapsed)}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+    </aside>
+  );
+};
+
+export default Sidebar;

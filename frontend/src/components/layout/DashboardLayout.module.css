@@ -1,0 +1,29 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f0f2f8;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+}
+
+/* The scrollable content area sitting to the right of the sidebar */
+.main {
+  flex: 1;
+  margin-left: 272px; /* 240px sidebar + 16px left offset + 16px gap */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When sidebar is collapsed (72px + 16px + 16px = 104px) */
+.shell:has(aside[class*="collapsed"]) .main {
+  margin-left: 104px;
+}
+
+.content {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+}
