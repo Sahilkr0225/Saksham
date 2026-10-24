@@ -34,7 +34,7 @@ async function runTests() {
     console.log(`[1] Ping Server... ${health.data.success ? '✅ ONLINE' : '❌ OFFLINE'}`);
 
     // Admin login
-    const adminLogin = await request('POST', '/auth/login', { email: 'sahil@gmail.com', password: 'Password@1234' });
+    const adminLogin = await request('POST', '/auth/login', { email: 'admin@gmail.com', password: 'Saksham_developer@1234' });
     if (adminLogin.status !== 200) throw new Error('Admin login failed');
     const adminToken = adminLogin.data.data.access_token;
     console.log(`[2] Admin Login... ✅`);

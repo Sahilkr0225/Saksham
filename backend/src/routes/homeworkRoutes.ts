@@ -4,12 +4,17 @@ import { authorize } from '../middlewares/rbac';
 import { validateRequest } from '../middlewares/validate';
 import {
   createHomeworkSchema,
+  updateHomeworkSchema,
   submitHomeworkSchema,
   updateSubmissionSchema,
 } from '../validators/homeworkValidator';
 import {
   createHomework,
+  getAllHomework,
   getHomeworkForClass,
+  getHomeworkById,
+  updateHomework,
+  deleteHomework,
   getMyHomework,
   submitHomework,
   getSubmissions,
@@ -18,6 +23,13 @@ import {
 
 const router = Router();
 router.use(authenticate);
+
+// List all homework (with optional query filters: academic_year_id, class_id, section_id, subject_id, status, search)
+router.get(
+  '/',
+  authorize('super_admin', 'principal', 'teacher'),
+  getAllHomework
+);
 
 // Teacher/Admin creates homework
 router.post(
@@ -41,6 +53,36 @@ router.get(
   getMyHomework
 );
 
+// Teacher grades / adds remarks to a submission (registered before single :homeworkId route)
+router.patch(
+  '/submissions/:submissionId',
+  authorize('super_admin', 'principal', 'teacher'),
+  validateRequest(updateSubmissionSchema),
+  updateSubmission
+);
+
+// Get single homework details with submission stats
+router.get(
+  '/:homeworkId',
+  authorize('super_admin', 'principal', 'teacher'),
+  getHomeworkById
+);
+
+// Update homework assignment
+router.patch(
+  '/:homeworkId',
+  authorize('super_admin', 'principal', 'teacher'),
+  validateRequest(updateHomeworkSchema),
+  updateHomework
+);
+
+// Delete homework assignment
+router.delete(
+  '/:homeworkId',
+  authorize('super_admin', 'principal'),
+  deleteHomework
+);
+
 // Student submits homework (max 2 attempts — enforced in controller)
 router.post(
   '/:homeworkId/submit',
@@ -54,14 +96,6 @@ router.get(
   '/:homeworkId/submissions',
   authorize('super_admin', 'principal', 'teacher'),
   getSubmissions
-);
-
-// Teacher grades / adds remarks to a submission
-router.patch(
-  '/submissions/:submissionId',
-  authorize('super_admin', 'principal', 'teacher'),
-  validateRequest(updateSubmissionSchema),
-  updateSubmission
 );
 
 export default router;

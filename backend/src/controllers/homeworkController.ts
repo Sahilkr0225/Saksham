@@ -22,30 +22,239 @@ export const createHomework = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/v1/homework/class/:classId
-export const getHomeworkForClass = async (req: Request, res: Response) => {
+// GET /api/v1/homework  — List with optional filters
+export const getAllHomework = async (req: Request, res: Response) => {
   try {
-    const { classId } = req.params;
-    const { subject_id, status = 'active' } = req.query;
+    const { academic_year_id, class_id, section_id, subject_id, status = 'active', search } = req.query;
 
-    const queryParams: any[] = [classId, status];
+    const queryParams: any[] = [];
     let query = `
-      SELECT h.*, s.name as subject_name, u.name as teacher_name
+      SELECT 
+        h.*,
+        c.name as class_name,
+        sec.name as section_name,
+        s.name as subject_name,
+        u.name as teacher_name,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submission_count,
+        (SELECT COUNT(DISTINCT hs.student_id) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submitted_students_count,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status = 'graded')::int as graded_count,
+        (SELECT COUNT(*) FROM students st WHERE st.current_class_id = h.class_id AND (h.section_id IS NULL OR st.current_section_id = h.section_id) AND st.status = 'active')::int as total_students
       FROM homework_assignments h
+      JOIN classes c ON h.class_id = c.id
       JOIN subjects s ON h.subject_id = s.id
+      LEFT JOIN sections sec ON h.section_id = sec.id
       LEFT JOIN users u ON h.assigned_by = u.id
-      WHERE h.class_id = $1 AND h.status = $2
+      WHERE 1=1
     `;
+
+    if (academic_year_id) {
+      queryParams.push(academic_year_id);
+      query += ` AND h.academic_year_id = $${queryParams.length}`;
+    }
+
+    if (class_id) {
+      queryParams.push(class_id);
+      query += ` AND h.class_id = $${queryParams.length}`;
+    }
+
+    if (section_id) {
+      queryParams.push(section_id);
+      query += ` AND (h.section_id IS NULL OR h.section_id = $${queryParams.length})`;
+    }
 
     if (subject_id) {
       queryParams.push(subject_id);
       query += ` AND h.subject_id = $${queryParams.length}`;
     }
 
-    query += ` ORDER BY h.due_date ASC`;
+    if (status && status !== 'all') {
+      queryParams.push(status);
+      query += ` AND h.status = $${queryParams.length}`;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      queryParams.push(`%${search.trim()}%`);
+      query += ` AND (h.title ILIKE $${queryParams.length} OR h.description ILIKE $${queryParams.length} OR s.name ILIKE $${queryParams.length})`;
+    }
+
+    query += ` ORDER BY h.due_date ASC, h.created_at DESC`;
 
     const result = await pool.query(query, queryParams);
     res.status(200).json({ success: true, data: { homework: result.rows } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// GET /api/v1/homework/class/:classId
+export const getHomeworkForClass = async (req: Request, res: Response) => {
+  try {
+    const { classId } = req.params;
+    const { subject_id, section_id, status = 'active' } = req.query;
+
+    const queryParams: any[] = [classId];
+    let query = `
+      SELECT 
+        h.*,
+        c.name as class_name,
+        sec.name as section_name,
+        s.name as subject_name,
+        u.name as teacher_name,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submission_count,
+        (SELECT COUNT(DISTINCT hs.student_id) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submitted_students_count,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status = 'graded')::int as graded_count,
+        (SELECT COUNT(*) FROM students st WHERE st.current_class_id = h.class_id AND (h.section_id IS NULL OR st.current_section_id = h.section_id) AND st.status = 'active')::int as total_students
+      FROM homework_assignments h
+      JOIN classes c ON h.class_id = c.id
+      JOIN subjects s ON h.subject_id = s.id
+      LEFT JOIN sections sec ON h.section_id = sec.id
+      LEFT JOIN users u ON h.assigned_by = u.id
+      WHERE h.class_id = $1
+    `;
+
+    if (status && status !== 'all') {
+      queryParams.push(status);
+      query += ` AND h.status = $${queryParams.length}`;
+    }
+
+    if (subject_id) {
+      queryParams.push(subject_id);
+      query += ` AND h.subject_id = $${queryParams.length}`;
+    }
+
+    if (section_id) {
+      queryParams.push(section_id);
+      query += ` AND (h.section_id IS NULL OR h.section_id = $${queryParams.length})`;
+    }
+
+    query += ` ORDER BY h.due_date ASC, h.created_at DESC`;
+
+    const result = await pool.query(query, queryParams);
+    res.status(200).json({ success: true, data: { homework: result.rows } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// GET /api/v1/homework/:homeworkId
+export const getHomeworkById = async (req: Request, res: Response) => {
+  try {
+    const { homeworkId } = req.params;
+    const result = await pool.query(`
+      SELECT 
+        h.*,
+        c.name as class_name,
+        sec.name as section_name,
+        s.name as subject_name,
+        u.name as teacher_name,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submission_count,
+        (SELECT COUNT(DISTINCT hs.student_id) FROM homework_submissions hs WHERE hs.homework_id = h.id)::int as submitted_students_count,
+        (SELECT COUNT(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status = 'graded')::int as graded_count,
+        (SELECT COUNT(*) FROM students st WHERE st.current_class_id = h.class_id AND (h.section_id IS NULL OR st.current_section_id = h.section_id) AND st.status = 'active')::int as total_students
+      FROM homework_assignments h
+      JOIN classes c ON h.class_id = c.id
+      JOIN subjects s ON h.subject_id = s.id
+      LEFT JOIN sections sec ON h.section_id = sec.id
+      LEFT JOIN users u ON h.assigned_by = u.id
+      WHERE h.id = $1
+    `, [homeworkId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Homework assignment not found' });
+    }
+
+    res.status(200).json({ success: true, data: { homework: result.rows[0] } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// PATCH /api/v1/homework/:homeworkId
+export const updateHomework = async (req: Request, res: Response) => {
+  try {
+    const { homeworkId } = req.params;
+    const { title, description, due_date, status } = req.body;
+    const userId = (req as any).user?.userId;
+
+    const existing = await pool.query(`SELECT * FROM homework_assignments WHERE id = $1`, [homeworkId]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Homework assignment not found' });
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (title !== undefined) {
+      values.push(title);
+      updates.push(`title = $${values.length}`);
+    }
+    if (description !== undefined) {
+      values.push(description || null);
+      updates.push(`description = $${values.length}`);
+    }
+    if (due_date !== undefined) {
+      values.push(due_date);
+      updates.push(`due_date = $${values.length}`);
+    }
+    if (status !== undefined) {
+      values.push(status);
+      updates.push(`status = $${values.length}`);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields provided for update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(homeworkId);
+
+    const result = await pool.query(`
+      UPDATE homework_assignments
+      SET ${updates.join(', ')}
+      WHERE id = $${values.length}
+      RETURNING *
+    `, values);
+
+    await createAuditLog({
+      userId,
+      action: 'UPDATE',
+      resource: 'homework',
+      resourceId: homeworkId,
+      oldValue: existing.rows[0],
+      newValue: result.rows[0],
+      ipAddress: req.ip
+    });
+
+    res.status(200).json({ success: true, message: 'Homework updated successfully', data: { homework: result.rows[0] } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// DELETE /api/v1/homework/:homeworkId
+export const deleteHomework = async (req: Request, res: Response) => {
+  try {
+    const { homeworkId } = req.params;
+    const userId = (req as any).user?.userId;
+
+    const existing = await pool.query(`SELECT * FROM homework_assignments WHERE id = $1`, [homeworkId]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Homework assignment not found' });
+    }
+
+    await pool.query(`DELETE FROM homework_assignments WHERE id = $1`, [homeworkId]);
+
+    await createAuditLog({
+      userId,
+      action: 'DELETE',
+      resource: 'homework',
+      resourceId: homeworkId,
+      oldValue: existing.rows[0],
+      newValue: null,
+      ipAddress: req.ip
+    });
+
+    res.status(200).json({ success: true, message: 'Homework assignment deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
   }
