@@ -172,6 +172,36 @@
     color: #818cf8;
 }
 
+.passwordInput {
+  padding-right: 50px;
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.eyeBtn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.08);
+}
+
+.eyeBtn:active {
+  transform: scale(0.96);
+}
+
 /* Options */
 .optionsRow {
   display: flex;

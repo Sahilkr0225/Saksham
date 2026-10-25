@@ -411,8 +411,15 @@
 }
 
 @keyframes modalEnter {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .modalHeader {
@@ -471,7 +478,9 @@
 }
 
 @media (max-width: 540px) {
-  .formGrid { grid-template-columns: 1fr; }
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .formGroup {
@@ -590,8 +599,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.35; }
+
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
 }
 
 @media (max-width: 768px) {
@@ -634,4 +650,3 @@
     justify-content: center;
   }
 }
-
