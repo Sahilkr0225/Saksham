@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createExamSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(255),
-  type: z.enum(['unit_test', 'mid_term', 'final', 'quiz']),
+  type: z.enum(['unit_test', 'mid_term', 'final', 'quiz', 'quarterly', 'half_yearly', 'annual']),
   academic_year_id: z.string().uuid('Invalid academic year ID'),
   class_id: z.string().uuid('Invalid class ID')
 });

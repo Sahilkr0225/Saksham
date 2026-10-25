@@ -17,10 +17,21 @@ import {
   getExamDetails,
   getStudentResult,
   getClassResults,
+  listExams,
+  getExamSubjectMarks,
+  deleteExam,
+  deleteExamSubject,
 } from '../controllers/examController';
 
 const router = Router();
 router.use(authenticate);
+
+// List all exams (with optional academic_year_id, class_id, status filters)
+router.get(
+  '/',
+  authorize('super_admin', 'principal', 'teacher', 'office_staff'),
+  listExams
+);
 
 // Create a new exam term
 router.post(
@@ -30,12 +41,33 @@ router.post(
   createExam
 );
 
+// Delete an exam (draft only)
+router.delete(
+  '/:id',
+  authorize('super_admin', 'principal'),
+  deleteExam
+);
+
 // Add a subject schedule to an exam
 router.post(
   '/subjects',
   authorize('super_admin', 'principal', 'teacher'),
   validateRequest(createExamSubjectSchema),
   addExamSubject
+);
+
+// Get student roster and existing marks for a subject schedule
+router.get(
+  '/subjects/:examSubjectId/marks',
+  authorize('super_admin', 'principal', 'teacher'),
+  getExamSubjectMarks
+);
+
+// Remove a subject schedule from an exam
+router.delete(
+  '/subjects/:examSubjectId',
+  authorize('super_admin', 'principal', 'teacher'),
+  deleteExamSubject
 );
 
 // Enter / update bulk student marks for a subject

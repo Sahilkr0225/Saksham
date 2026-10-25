@@ -182,6 +182,29 @@ async function runTests() {
     }
     console.log(`[12] Teacher Class Result Summary... ✅ (${classSummary.data.data.results.length} students processed)`);
 
+    // 13. List all exams for academic year
+    const listExamsRes = await request('GET', `/exams?academic_year_id=${academicYearId}`, null, adminToken);
+    if (listExamsRes.status !== 200 || !Array.isArray(listExamsRes.data.data.exams)) {
+      throw new Error(`List exams failed: ${JSON.stringify(listExamsRes.data)}`);
+    }
+    console.log(`[13] List Exams Query (academic_year_id filter)... ✅ (${listExamsRes.data.data.exams.length} exams found)`);
+
+    // 14. Get Exam Subject student marks roster
+    const subjectMarksRes = await request('GET', `/exams/subjects/${exMathId}/marks`, null, teacherToken);
+    if (subjectMarksRes.status !== 200 || !Array.isArray(subjectMarksRes.data.data.students)) {
+      throw new Error(`Get subject marks failed: ${JSON.stringify(subjectMarksRes.data)}`);
+    }
+    console.log(`[14] Subject Marks Roster Query... ✅ (${subjectMarksRes.data.data.students.length} students on roster)`);
+
+    // 15. Create and Delete Draft Exam
+    const draftExamRes = await request('POST', '/exams', {
+      title: 'Temporary Quiz', type: 'quiz', academic_year_id: academicYearId, class_id: classId
+    }, adminToken);
+    const draftExamId = draftExamRes.data.data.exam.id;
+    const delRes = await request('DELETE', `/exams/${draftExamId}`, null, adminToken);
+    if (delRes.status !== 200) throw new Error(`Delete draft exam failed: ${JSON.stringify(delRes.data)}`);
+    console.log(`[15] Draft Exam Creation & Deletion Lifecycle... ✅`);
+
     console.log('\n🎉 ALL EXAMS & RESULTS API TESTS PASSED SUCCESSFULLY! ✅\n');
   } catch (error: any) {
     console.error('\n❌ TEST RUN FAILED!', error.message || error);

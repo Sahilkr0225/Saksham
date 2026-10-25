@@ -240,10 +240,17 @@ export const getStudentResult = async (req: Request, res: Response) => {
       });
     }
 
+    let targetStudentId = studentId;
+
     // Check Student ownership for student/parent roles
     if (userRole === 'student') {
       const selfStudent = await pool.query(`SELECT id FROM students WHERE user_id = $1`, [userId]);
-      if (selfStudent.rows.length === 0 || selfStudent.rows[0].id !== studentId) {
+      if (selfStudent.rows.length === 0) {
+        return res.status(403).json({ success: false, message: 'Student profile not found' });
+      }
+      if (studentId === 'me') {
+        targetStudentId = selfStudent.rows[0].id;
+      } else if (selfStudent.rows[0].id !== studentId) {
         return res.status(403).json({ success: false, message: 'Access denied to this student result' });
       }
     } else if (userRole === 'parent') {
@@ -265,7 +272,7 @@ export const getStudentResult = async (req: Request, res: Response) => {
       FROM students s
       JOIN users u ON s.user_id = u.id
       WHERE s.id = $1
-    `, [studentId]);
+    `, [targetStudentId]);
 
     if (studentRes.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Student not found' });
@@ -281,7 +288,7 @@ export const getStudentResult = async (req: Request, res: Response) => {
       LEFT JOIN exam_marks em ON em.exam_subject_id = es.id AND em.student_id = $2
       WHERE es.exam_id = $1
       ORDER BY es.exam_date ASC
-    `, [examId, studentId]);
+    `, [examId, targetStudentId]);
 
     let totalMaxMarks = 0;
     let totalObtained = 0;
@@ -414,3 +421,146 @@ export const getClassResults = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
   }
 };
+
+// GET /api/v1/exams  (List all exams with optional filters)
+export const listExams = async (req: Request, res: Response) => {
+  try {
+    const { academic_year_id, class_id, status } = req.query;
+
+    let query = `
+      SELECT e.*, 
+             c.name as class_name,
+             ay.name as academic_year_name,
+             (SELECT COUNT(*) FROM exam_subjects es WHERE es.exam_id = e.id) as subject_count,
+             u.name as created_by_name
+      FROM exams e
+      JOIN classes c ON e.class_id = c.id
+      JOIN academic_years ay ON e.academic_year_id = ay.id
+      LEFT JOIN users u ON e.created_by = u.id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (academic_year_id) {
+      params.push(academic_year_id);
+      query += ` AND e.academic_year_id = $${params.length}`;
+    }
+    if (class_id) {
+      params.push(class_id);
+      query += ` AND e.class_id = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      query += ` AND e.status = $${params.length}`;
+    }
+
+    query += ` ORDER BY e.created_at DESC`;
+
+    const result = await pool.query(query, params);
+    res.status(200).json({ success: true, data: { exams: result.rows } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// GET /api/v1/exams/subjects/:examSubjectId/marks  (Roster of students and current marks for a subject)
+export const getExamSubjectMarks = async (req: Request, res: Response) => {
+  try {
+    const { examSubjectId } = req.params;
+
+    const subjectRes = await pool.query(`
+      SELECT es.*, s.name as subject_name, s.code as subject_code,
+             e.id as exam_id, e.title as exam_title, e.class_id, e.status as exam_status,
+             c.name as class_name
+      FROM exam_subjects es
+      JOIN exams e ON es.exam_id = e.id
+      JOIN subjects s ON es.subject_id = s.id
+      JOIN classes c ON e.class_id = c.id
+      WHERE es.id = $1
+    `, [examSubjectId]);
+
+    if (subjectRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Exam subject schedule not found' });
+    }
+
+    const examSubject = subjectRes.rows[0];
+
+    // Fetch active enrolled students in this class with their existing marks
+    const marksRes = await pool.query(`
+      SELECT s.id as student_id, s.admission_number, s.roll_number, u.name as student_name,
+             em.marks_obtained, em.is_absent, em.remarks, em.graded_by,
+             sec.name as section_name
+      FROM students s
+      JOIN users u ON s.user_id = u.id
+      LEFT JOIN sections sec ON s.current_section_id = sec.id
+      LEFT JOIN exam_marks em ON em.exam_subject_id = $1 AND em.student_id = s.id
+      WHERE s.current_class_id = $2 AND s.status = 'active'
+      ORDER BY s.roll_number ASC NULLS LAST, u.name ASC
+    `, [examSubjectId, examSubject.class_id]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        exam_subject: examSubject,
+        students: marksRes.rows
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// DELETE /api/v1/exams/:id  (Delete exam if not published)
+export const deleteExam = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user?.userId;
+
+    const existing = await pool.query(`SELECT * FROM exams WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Exam not found' });
+    }
+    if (existing.rows[0].status === 'published') {
+      return res.status(400).json({ success: false, message: 'Cannot delete published exam' });
+    }
+
+    await pool.query(`DELETE FROM exams WHERE id = $1`, [id]);
+
+    await createAuditLog({
+      userId, action: 'DELETE', resource: 'exams', resourceId: id,
+      oldValue: existing.rows[0], newValue: null, ipAddress: req.ip
+    });
+
+    res.status(200).json({ success: true, message: 'Exam deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
+// DELETE /api/v1/exams/subjects/:examSubjectId  (Remove subject schedule)
+export const deleteExamSubject = async (req: Request, res: Response) => {
+  try {
+    const { examSubjectId } = req.params;
+
+    const existing = await pool.query(`
+      SELECT es.*, e.status as exam_status 
+      FROM exam_subjects es 
+      JOIN exams e ON es.exam_id = e.id 
+      WHERE es.id = $1
+    `, [examSubjectId]);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Exam subject schedule not found' });
+    }
+    if (existing.rows[0].exam_status === 'published') {
+      return res.status(400).json({ success: false, message: 'Cannot remove subjects from a published exam' });
+    }
+
+    await pool.query(`DELETE FROM exam_subjects WHERE id = $1`, [examSubjectId]);
+
+    res.status(200).json({ success: true, message: 'Subject schedule removed from exam' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
+  }
+};
+
