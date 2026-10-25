@@ -13,6 +13,7 @@ import {
   ChevronRight,
   GraduationCap,
   CalendarCheck,
+  Award,
   X,
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
@@ -26,6 +27,7 @@ const navItems = [
   { to: '/teachers', icon: <UserCheck size={20} />, label: 'Teachers' },
   { to: '/attendance', icon: <CalendarCheck size={20} />, label: 'Attendance' },
   { to: '/homework', icon: <BookOpen size={20} />, label: 'Homework' },
+  { to: '/exams', icon: <Award size={20} />, label: 'Exams & Results' },
   { to: '/fees', icon: <DollarSign size={20} />, label: 'Fee Management' },
   { to: '/notices', icon: <Bell size={20} />, label: 'Notices & Events' },
 ];

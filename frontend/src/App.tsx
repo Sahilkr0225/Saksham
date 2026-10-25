@@ -8,6 +8,7 @@ import Teachers from './pages/Teachers';
 import Parents from './pages/Parents';
 import Attendance from './pages/Attendance';
 import Homework from './pages/Homework';
+import Exams from './pages/Exams';
 import Fees from './pages/Fees';
 import Landing from './pages/Landing';
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -42,6 +43,7 @@ function App() {
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/homework" element={<Homework />} />
+            <Route path="/exams" element={<Exams />} />
             <Route path="/fees" element={<Fees />} />
             <Route path="/notices" element={<Placeholder name="Notices & Events" />} />
           </Route>
