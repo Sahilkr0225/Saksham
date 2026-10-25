@@ -1,6 +1,8 @@
 .shell {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
   background: #f0f2f8;
   background-image:
     radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
@@ -11,21 +13,32 @@
 .main {
   flex: 1;
   margin-left: 272px; /* 240px sidebar + 16px left offset + 16px gap */
+  width: calc(100% - 272px);
+  max-width: calc(100% - 272px);
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* When sidebar is collapsed (72px + 16px + 16px = 104px) */
 .shell:has(aside[class*="collapsed"]) .main {
   margin-left: 104px;
+  width: calc(100% - 104px);
+  max-width: calc(100% - 104px);
 }
 
 .content {
   flex: 1;
-  padding: 28px;
+  padding: 24px 28px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Mobile backdrop */

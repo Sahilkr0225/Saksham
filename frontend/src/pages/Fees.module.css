@@ -1,0 +1,758 @@
+/* Fees.module.css - Saksham Fee Management & Financial Operations */
+
+.container {
+  padding: 0 0 32px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header & Breadcrumb */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.titleArea h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin: 0 0 6px 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Tabs */
+.tabNav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tabBtn:hover {
+  color: #1e293b;
+}
+
+.activeTabBtn {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+/* Metrics Cards Grid */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metricCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.metricHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.metricValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.metricSubtext {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Cashier Desk Layout */
+.deskLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .deskLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.cardTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Form Styles */
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.formInput, .formSelect, .formTextarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.formInput:focus, .formSelect:focus, .formTextarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.formTextarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.paymentModeSelector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.modeOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.2s ease;
+  gap: 4px;
+}
+
+.modeOption:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.modeActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* Primary, Secondary & Danger Buttons */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.btnDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.btnWarning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #d97706;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btnWarning:hover:not(:disabled) {
+  background-color: #b45309;
+}
+
+/* Student Due Card */
+.dueCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.dueRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.875rem;
+}
+
+.dueLabel {
+  color: #64748b;
+}
+
+.dueVal {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.dueHighlight {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.advanceHighlight {
+  color: #059669;
+  font-weight: 700;
+}
+
+/* Tables */
+.tableContainer {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.tableContainerWithPagination {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.tableContainer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background: #f8fafc;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.table tr:hover td {
+  background: #f8fafc;
+}
+
+.receiptCell {
+  white-space: nowrap;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.nowrapCell {
+  white-space: nowrap;
+}
+
+.classCell {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studentCell {
+  min-width: 150px;
+}
+
+/* Status Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badgeSuccess {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badgeWarning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badgeDanger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badgeNeutral {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badgeInfo {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* Filters Row */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.searchBox {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 9px 12px 9px 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+/* Modals */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 14px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.modalClose {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.modalClose:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+/* Institutional Receipt Styles */
+.receiptContainer {
+  background: #ffffff;
+  padding: 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+.receiptWatermark {
+  position: absolute;
+  top: 40%;
+  left: 20%;
+  transform: rotate(-30deg);
+  font-size: 4.5rem;
+  font-weight: 900;
+  color: rgba(220, 38, 38, 0.18);
+  border: 8px solid rgba(220, 38, 38, 0.25);
+  padding: 10px 40px;
+  border-radius: 16px;
+  pointer-events: none;
+  letter-spacing: 0.1em;
+  user-select: none;
+  text-transform: uppercase;
+}
+
+.receiptHeader {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.schoolInfo h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.schoolSubtext {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.receiptMeta {
+  text-align: right;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.receiptNo {
+  font-family: monospace;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 4px;
+}
+
+.receiptGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+}
+
+.receiptGridItem span:first-child {
+  color: #64748b;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.receiptGridItem span:last-child {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.reversalNotice {
+  background: #fef2f2;
+  border-left: 4px solid #dc2626;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 0 6px 6px 0;
+}
+
+.reversalNoticeTitle {
+  font-weight: 700;
+  color: #991b1b;
+  font-size: 0.875rem;
+  margin-bottom: 4px;
+}
+
+.reversalNoticeText {
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+/* Printable Receipt Table */
+.receiptTable {
+  width: 100%;
+  min-width: unset;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+  margin-top: 6px;
+}
+
+.receiptTable th {
+  background: #f8fafc;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.receiptTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.receiptSummaryBox {
+  margin-top: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.receiptSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.84rem;
+}
+
+.receiptSummaryRowTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 6px;
+  border-top: 1px dashed #cbd5e1;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* Pagination controls */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.pageButtons {
+  display: flex;
+  gap: 6px;
+}
+
+/* Print Rules */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receiptContainer, .receiptContainer * {
+    visibility: visible;
+  }
+  .receiptContainer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    padding: 0;
+  }
+  .noPrint {
+    display: none !important;
+  }
+}
