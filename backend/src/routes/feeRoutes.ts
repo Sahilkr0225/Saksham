@@ -9,6 +9,8 @@ import {
   updateComponentSchema,
   assignFeeSchema,
   recordPaymentSchema,
+  reversePaymentSchema,
+  updateChequeStatusSchema,
 } from '../validators/feeValidator';
 import {
   createFeeStructure,
@@ -21,6 +23,9 @@ import {
   assignFeeToStudent,
   getStudentFeeSummary,
   recordPayment,
+  reversePayment,
+  updateChequeStatus,
+  listPayments,
   getReceipt,
   getPendingDues,
   getOverdueDues,
@@ -80,7 +85,7 @@ router.delete(
 // ── Student Fee Assignment ────────────────────────────────────────────────────
 router.post(
   '/assign',
-  authorize('super_admin', 'office_staff'),
+  authorize('super_admin', 'principal', 'office_staff'),
   validateRequest(assignFeeSchema),
   assignFeeToStudent
 );
@@ -93,11 +98,28 @@ router.get(
 );
 
 // ── Payments ──────────────────────────────────────────────────────────────────
+router.get(
+  '/payments',
+  authorize('super_admin', 'principal', 'office_staff'),
+  listPayments
+);
 router.post(
   '/payments',
-  authorize('super_admin', 'office_staff'),
+  authorize('super_admin', 'principal', 'office_staff'),
   validateRequest(recordPaymentSchema),
   recordPayment
+);
+router.post(
+  '/payments/:id/reverse',
+  authorize('super_admin', 'principal'),
+  validateRequest(reversePaymentSchema),
+  reversePayment
+);
+router.patch(
+  '/payments/:id/cheque-status',
+  authorize('super_admin', 'principal', 'office_staff'),
+  validateRequest(updateChequeStatusSchema),
+  updateChequeStatus
 );
 
 // ── Receipts ──────────────────────────────────────────────────────────────────

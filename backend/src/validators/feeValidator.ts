@@ -56,6 +56,7 @@ export const recordPaymentSchema = z.object({
   bank_name: z.string().max(100).optional(),
   reference_number: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
+  idempotency_key: z.string().max(100).optional(),
 }).superRefine((data, ctx) => {
   if (data.payment_mode === 'cheque') {
     if (!data.cheque_number) {
@@ -69,3 +70,20 @@ export const recordPaymentSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Reference number is required for bank transfer payments', path: ['reference_number'] });
   }
 });
+
+// ── Reversals & Cheque Lifecycle ───────────────────────────
+
+export const reversePaymentSchema = z.object({
+  reason: z.string().min(10, 'Reversal reason must be at least 10 characters').max(500),
+});
+
+export const updateChequeStatusSchema = z.object({
+  status: z.enum(['deposited', 'cleared', 'bounced']),
+  cleared_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Cleared date must be YYYY-MM-DD').optional(),
+  bounce_reason: z.string().max(255).optional(),
+}).superRefine((data, ctx) => {
+  if (data.status === 'bounced' && !data.bounce_reason) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Bounce reason is required when cheque bounces', path: ['bounce_reason'] });
+  }
+});
+

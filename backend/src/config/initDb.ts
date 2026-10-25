@@ -354,6 +354,9 @@ const tablesSql = `
   CREATE INDEX IF NOT EXISTS idx_student_fee_assignments_student ON student_fee_assignments(student_id);
   CREATE INDEX IF NOT EXISTS idx_student_fee_assignments_year ON student_fee_assignments(academic_year_id);
 
+  -- Atomic sequence for concurrency-safe unique receipt numbering
+  CREATE SEQUENCE IF NOT EXISTS fee_receipt_seq START WITH 1 INCREMENT BY 1;
+
   -- Each payment transaction recorded by office staff
   CREATE TABLE IF NOT EXISTS fee_payments (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -363,21 +366,43 @@ const tablesSql = `
       amount_paid DECIMAL(10,2) NOT NULL CHECK (amount_paid > 0),
       payment_mode VARCHAR(20) NOT NULL DEFAULT 'cash',  -- 'cash', 'cheque', 'bank_transfer'
       payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
-      -- Cheque-specific fields
+      status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'reversed', 'bounced')),
+      -- Cheque-specific fields & lifecycle
       cheque_number VARCHAR(50),
       bank_name VARCHAR(100),
+      cheque_status VARCHAR(20) CHECK (cheque_status IS NULL OR cheque_status IN ('received', 'deposited', 'cleared', 'bounced')),
+      cheque_cleared_at TIMESTAMP WITH TIME ZONE,
+      cheque_bounce_reason TEXT,
       -- Bank transfer / DD reference
       reference_number VARCHAR(100),
       notes TEXT,
       collected_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      idempotency_key VARCHAR(100),
+      -- Reversal metadata
+      reversed_at TIMESTAMP WITH TIME ZONE,
+      reversed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      reversal_reason TEXT,
       created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
   );
+
+  -- Safe schema upgrade for existing tables
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100);
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed';
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS reversed_at TIMESTAMP WITH TIME ZONE;
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS reversed_by UUID REFERENCES users(id) ON DELETE SET NULL;
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS reversal_reason TEXT;
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS cheque_status VARCHAR(20);
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS cheque_cleared_at TIMESTAMP WITH TIME ZONE;
+  ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS cheque_bounce_reason TEXT;
 
   CREATE INDEX IF NOT EXISTS idx_fee_payments_student ON fee_payments(student_id);
   CREATE INDEX IF NOT EXISTS idx_fee_payments_year ON fee_payments(academic_year_id);
   CREATE INDEX IF NOT EXISTS idx_fee_payments_receipt ON fee_payments(receipt_number);
   CREATE INDEX IF NOT EXISTS idx_fee_payments_date ON fee_payments(payment_date);
+  CREATE INDEX IF NOT EXISTS idx_fee_payments_status ON fee_payments(status);
+  CREATE UNIQUE INDEX IF NOT EXISTS uk_fee_payments_idempotency ON fee_payments(idempotency_key) WHERE idempotency_key IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_fee_payments_realized ON fee_payments(student_id, academic_year_id) WHERE status = 'completed' AND (payment_mode != 'cheque' OR cheque_status = 'cleared');
 
   -- Running advance credit balance per student per academic year
   CREATE TABLE IF NOT EXISTS student_fee_ledger (

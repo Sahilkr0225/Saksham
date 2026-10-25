@@ -53,7 +53,17 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Idempotency-Key',
+    'idempotency-key',
+    'X-Idempotency-Key',
+    'x-idempotency-key'
+  ],
+  exposedHeaders: ['Idempotent-Replay', 'Content-Disposition']
 }));
 app.use(express.json());
 app.use(cookieParser()); // Required for reading HTTPOnly refresh_token cookie
