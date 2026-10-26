@@ -2,12 +2,42 @@ import { Request, Response } from 'express';
 import pool from '../config/db';
 import { createAuditLog } from '../utils/audit';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const getAuthorizedClassIds = async (userId: string, role: string): Promise<string[]> => {
+  let classIds: string[] = [];
+  if (role === 'student') {
+    const studentCheck = await pool.query(
+      `SELECT current_class_id FROM students WHERE user_id = $1 AND status = 'active' AND current_class_id IS NOT NULL`,
+      [userId]
+    );
+    classIds = studentCheck.rows.map((r: any) => r.current_class_id).filter(Boolean);
+  } else if (role === 'parent') {
+    const parentCheck = await pool.query(
+      `SELECT current_class_id FROM students WHERE parent_user_id = $1 AND status = 'active' AND current_class_id IS NOT NULL`,
+      [userId]
+    );
+    classIds = parentCheck.rows.map((r: any) => r.current_class_id).filter(Boolean);
+  }
+  return classIds;
+};
+
 // ─── Notices ─────────────────────────────────────────────────────────────────
 
 export const createNotice = async (req: Request, res: Response) => {
   try {
     const { title, content, type, priority, target_audience, target_role, target_class_id, academic_year_id, published } = req.body;
     const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
+
+    // Only super_admin and principal may set high priority (pinned)
+    const requestedPriority = priority || 'normal';
+    if (requestedPriority === 'high' && !['super_admin', 'principal'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Only super_admin and principal can set priority to high'
+      });
+    }
 
     const publishedAt = published ? new Date() : null;
 
@@ -15,7 +45,7 @@ export const createNotice = async (req: Request, res: Response) => {
       INSERT INTO notices (title, content, type, priority, target_audience, target_role, target_class_id, academic_year_id, published, published_at, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
-    `, [title, content, type || 'general', priority || 'normal', target_audience || 'all', target_role || null, target_class_id || null, academic_year_id || null, published || false, publishedAt, userId]);
+    `, [title, content, type || 'general', requestedPriority, target_audience || 'all', target_role || null, target_class_id || null, academic_year_id || null, published || false, publishedAt, userId]);
 
     await createAuditLog({ userId, action: 'CREATE', resource: 'notices', resourceId: result.rows[0].id, oldValue: null, newValue: result.rows[0], ipAddress: req.ip });
 
@@ -72,18 +102,12 @@ export const getAllNotices = async (req: Request, res: Response) => {
 export const getMyNotices = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
-    const roleId = (req as any).user?.role; // this might be role name or role id depending on JWT. Assuming it's role name for RBAC logic.
+    const userRole = ((req as any).user?.role || '').toLowerCase();
 
     // To serve student/parent, find their relevant classes
-    let classIds: string[] = [];
-    const studentCheck = await pool.query(`SELECT current_class_id FROM students WHERE user_id = $1 AND status = 'active'`, [userId]);
-    if (studentCheck.rows.length > 0) {
-      classIds.push(studentCheck.rows[0].current_class_id);
-    }
-    const parentCheck = await pool.query(`SELECT current_class_id FROM students WHERE parent_user_id = $1 AND status = 'active'`, [userId]);
-    classIds = classIds.concat(parentCheck.rows.map(r => r.current_class_id).filter(id => id));
+    const classIds = await getAuthorizedClassIds(userId, userRole);
 
-    const paramArray: any[] = [roleId || ''];
+    const paramArray: any[] = [userRole || ''];
     let query = `
       SELECT n.*, u.name as author_name, c.name as class_name 
       FROM notices n
@@ -114,6 +138,9 @@ export const getMyNotices = async (req: Request, res: Response) => {
 export const getNoticeById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
+
     const result = await pool.query(`
       SELECT n.*, u.name as author_name, c.name as class_name 
       FROM notices n
@@ -123,7 +150,35 @@ export const getNoticeById = async (req: Request, res: Response) => {
     `, [id]);
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Notice not found' });
-    res.status(200).json({ success: true, data: { notice: result.rows[0] } });
+    const notice = result.rows[0];
+
+    // Administrative / staff access check
+    const isStaff = ['super_admin', 'principal', 'office_staff', 'teacher'].includes(userRole);
+    if (!isStaff) {
+      // Students and parents:
+      // 1. Unpublished notices are never accessible
+      if (!notice.published) {
+        return res.status(404).json({ success: false, message: 'Notice not found' });
+      }
+
+      // 2. Audience authorization check
+      if (notice.target_audience === 'all') {
+        // School-wide: accessible
+      } else if (notice.target_audience === 'role') {
+        if (notice.target_role !== userRole) {
+          return res.status(404).json({ success: false, message: 'Notice not found' });
+        }
+      } else if (notice.target_audience === 'class') {
+        const classIds = await getAuthorizedClassIds(userId, userRole);
+        if (!notice.target_class_id || !classIds.includes(notice.target_class_id)) {
+          return res.status(404).json({ success: false, message: 'Notice not found' });
+        }
+      } else {
+        return res.status(404).json({ success: false, message: 'Notice not found' });
+      }
+    }
+
+    res.status(200).json({ success: true, data: { notice } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
   }
@@ -134,9 +189,26 @@ export const updateNotice = async (req: Request, res: Response) => {
     const { id } = req.params;
     const updates = req.body;
     const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
 
     const existing = await pool.query(`SELECT * FROM notices WHERE id = $1 AND deleted_at IS NULL`, [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, message: 'Notice not found' });
+
+    // Enforce ownership: Teachers can only edit notices they created
+    if (userRole === 'teacher' && existing.rows[0].created_by !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Teachers can only edit notices they created'
+      });
+    }
+
+    // Only super_admin and principal may set priority to 'high'
+    if (updates.priority === 'high' && !['super_admin', 'principal'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Only super_admin and principal can set priority to high'
+      });
+    }
 
     // Handle dynamic update
     const allowedFields = ['title', 'content', 'type', 'priority', 'target_audience', 'target_role', 'target_class_id', 'published'];
@@ -197,9 +269,18 @@ export const deleteNotice = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
 
     const existing = await pool.query(`SELECT * FROM notices WHERE id = $1 AND deleted_at IS NULL`, [id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, message: 'Notice not found' });
+
+    // Enforce ownership: Teachers can only delete notices they created
+    if (userRole === 'teacher' && existing.rows[0].created_by !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Teachers can only delete notices they created'
+      });
+    }
 
     // Soft delete
     const result = await pool.query(`UPDATE notices SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`, [id]);
@@ -236,6 +317,8 @@ export const createEvent = async (req: Request, res: Response) => {
 export const getEvents = async (req: Request, res: Response) => {
   try {
     const { event_type, start_date, end_date, target_class_id } = req.query;
+    const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
 
     let query = `
       SELECT e.*, c.name as class_name 
@@ -254,9 +337,35 @@ export const getEvents = async (req: Request, res: Response) => {
       query += ` AND (e.start_date <= $${paramIndex++} AND (e.end_date IS NULL OR e.end_date >= $${paramIndex++}))`;
       params.push(end_date, start_date);
     }
-    if (target_class_id) {
-      query += ` AND (e.target_audience = 'all' OR e.target_class_id = $${paramIndex++})`;
-      params.push(target_class_id);
+
+    const isStaff = ['super_admin', 'principal', 'office_staff', 'teacher'].includes(userRole);
+    if (isStaff) {
+      if (target_class_id) {
+        query += ` AND (e.target_audience = 'all' OR e.target_class_id = $${paramIndex++})`;
+        params.push(target_class_id);
+      }
+    } else {
+      // Non-staff: student or parent
+      const authorizedClassIds = await getAuthorizedClassIds(userId, userRole);
+
+      if (authorizedClassIds.length > 0) {
+        if (target_class_id) {
+          // If client specifies target_class_id, only honor if authorized for this user
+          if (authorizedClassIds.includes(target_class_id as string)) {
+            query += ` AND (e.target_audience = 'all' OR e.target_class_id = $${paramIndex++})`;
+            params.push(target_class_id);
+          } else {
+            // Requested class outside authorized classes: restrict to school-wide events only
+            query += ` AND e.target_audience = 'all'`;
+          }
+        } else {
+          query += ` AND (e.target_audience = 'all' OR e.target_class_id = ANY($${paramIndex++}::uuid[]))`;
+          params.push(authorizedClassIds);
+        }
+      } else {
+        // No enrolled/guardian-linked class: school-wide events only
+        query += ` AND e.target_audience = 'all'`;
+      }
     }
 
     query += ` ORDER BY e.start_date ASC`;
@@ -271,9 +380,30 @@ export const getEvents = async (req: Request, res: Response) => {
 export const getEventById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`SELECT * FROM events WHERE id = $1`, [id]);
+    const userId = (req as any).user?.userId;
+    const userRole = ((req as any).user?.role || '').toLowerCase();
+
+    const result = await pool.query(`
+      SELECT e.*, c.name as class_name 
+      FROM events e
+      LEFT JOIN classes c ON e.target_class_id = c.id
+      WHERE e.id = $1
+    `, [id]);
+
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Event not found' });
-    res.status(200).json({ success: true, data: { event: result.rows[0] } });
+    const event = result.rows[0];
+
+    const isStaff = ['super_admin', 'principal', 'office_staff', 'teacher'].includes(userRole);
+    if (!isStaff) {
+      if (event.target_audience === 'class') {
+        const authorizedClassIds = await getAuthorizedClassIds(userId, userRole);
+        if (!event.target_class_id || !authorizedClassIds.includes(event.target_class_id)) {
+          return res.status(404).json({ success: false, message: 'Event not found' });
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, data: { event } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Server error', data: { error: error.message } });
   }
