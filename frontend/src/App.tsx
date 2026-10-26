@@ -10,17 +10,12 @@ import Attendance from './pages/Attendance';
 import Homework from './pages/Homework';
 import Exams from './pages/Exams';
 import Fees from './pages/Fees';
+import Notices from './pages/Notices';
 import Landing from './pages/Landing';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { AuthProvider } from './context/AuthContext';
 
-// Placeholder pages for modules — to be fully built next
-const Placeholder = ({ name }: { name: string }) => (
-  <div style={{ padding: '40px 0', fontFamily: 'Inter, sans-serif' }}>
-    <h2 style={{ fontSize: '1.5rem', color: '#0f172a' }}>{name}</h2>
-    <p style={{ color: '#64748b', marginTop: '8px' }}>This module is being built. Coming up next!</p>
-  </div>
-);
+
 
 function App() {
   return (
@@ -45,7 +40,7 @@ function App() {
             <Route path="/homework" element={<Homework />} />
             <Route path="/exams" element={<Exams />} />
             <Route path="/fees" element={<Fees />} />
-            <Route path="/notices" element={<Placeholder name="Notices & Events" />} />
+            <Route path="/notices" element={<Notices />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
