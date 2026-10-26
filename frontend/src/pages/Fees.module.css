@@ -736,6 +736,74 @@
   gap: 6px;
 }
 
+/* ========================================================
+   Responsive Media Queries (Mobile & Tablet Safeguards)
+   ======================================================== */
+@media (max-width: 1024px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metricCard {
+    padding: 14px 16px;
+  }
+  .metricValue {
+    font-size: 1.35rem;
+  }
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .searchBox {
+    width: 100%;
+    min-width: unset;
+  }
+  .card {
+    padding: 16px;
+  }
+  .modalHeader {
+    padding: 16px 18px;
+  }
+  .modalBody {
+    padding: 16px 18px;
+  }
+  .modalFooter {
+    padding: 14px 18px;
+  }
+  .receiptContainer {
+    padding: 16px 12px;
+  }
+  .receiptSchoolName {
+    font-size: 1.15rem;
+  }
+  .receiptStudentGrid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+  .tabBtn {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  .paymentModeSelector {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* Print Rules */
 @media print {
   body * {

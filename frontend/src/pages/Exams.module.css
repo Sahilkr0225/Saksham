@@ -1116,6 +1116,97 @@
   justify-content: space-between;
 }
 
+/* ========================================================
+   Responsive Media Queries (Mobile & Tablet Safeguards)
+   ======================================================== */
+@media (max-width: 1024px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .actionGroup {
+    width: 100%;
+  }
+  .actionGroup button {
+    width: 100%;
+    justify-content: center;
+  }
+  .examGrid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .examGrid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .filterGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metricCard {
+    padding: 14px 16px;
+  }
+  .metricValue {
+    font-size: 1.35rem;
+  }
+  .formGridTwoCol {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .modalHeader {
+    padding: 14px 18px;
+  }
+  .modalBody {
+    padding: 16px 18px;
+  }
+  .modalFooter {
+    padding: 14px 18px;
+  }
+  .reportCardScrollArea {
+    padding: 14px 12px;
+  }
+  .reportCardContainer {
+    padding: 18px 14px;
+  }
+  .schoolName {
+    font-size: 1.25rem;
+  }
+  .studentInfoGrid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  .summaryCardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .signaturesRow {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+  .tabBtn {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  .marksInput {
+    width: 65px;
+  }
+}
+
 /* Print Rules for Official Institutional Report Card */
 @media print {
   body * {
