@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import pool from '../config/db';
 import { createAuditLog } from '../utils/audit';
+import { broadcastRoleNotification } from '../utils/notification';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,18 @@ export const createNotice = async (req: Request, res: Response) => {
     `, [title, content, type || 'general', requestedPriority, target_audience || 'all', target_role || null, target_class_id || null, academic_year_id || null, published || false, publishedAt, userId]);
 
     await createAuditLog({ userId, action: 'CREATE', resource: 'notices', resourceId: result.rows[0].id, oldValue: null, newValue: result.rows[0], ipAddress: req.ip });
+
+    // Trigger in-app notification if notice is immediately published
+    if (result.rows[0].published) {
+      if (target_audience === 'role' && target_role) {
+        broadcastRoleNotification(target_role, {
+          title: `New Circular: ${title}`,
+          message: content.length > 120 ? content.substring(0, 117) + '...' : content,
+          type: 'notice',
+          link: '/notices'
+        });
+      }
+    }
 
     res.status(201).json({ success: true, message: 'Notice created successfully', data: { notice: result.rows[0] } });
   } catch (error: any) {
