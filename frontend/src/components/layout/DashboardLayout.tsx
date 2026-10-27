@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import styles from './DashboardLayout.module.css';
 import { useAuth } from '../../context/AuthContext';
+import ErrorBoundary from '../common/ErrorBoundary';
 
 interface DashboardLayoutProps {
   title?: string;
@@ -53,7 +54,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ title = 'Dashboard' }
           onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)}
         />
         <main className={styles.content}>
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

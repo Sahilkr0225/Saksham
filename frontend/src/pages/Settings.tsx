@@ -87,14 +87,32 @@ const Settings: React.FC = () => {
       ]);
 
       if (settingsRes.data?.success && settingsRes.data?.data) {
+        let rawWorkingDays = settingsRes.data.data.working_days;
+        if (typeof rawWorkingDays === 'string') {
+          try {
+            rawWorkingDays = JSON.parse(rawWorkingDays);
+          } catch {
+            rawWorkingDays = [];
+          }
+        }
+        if (!Array.isArray(rawWorkingDays) || rawWorkingDays.length === 0) {
+          rawWorkingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        }
+
         setSettings({
           ...settingsRes.data.data,
-          working_days: settingsRes.data.data.working_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+          working_days: rawWorkingDays
         });
       }
 
       if (classesRes.data?.data) {
-        setClasses(classesRes.data.data);
+        const raw = classesRes.data.data;
+        const list = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.classes)
+          ? raw.classes
+          : [];
+        setClasses(list);
       }
     } catch (err) {
       console.error('Failed to load initial settings data:', err);
@@ -178,17 +196,20 @@ const Settings: React.FC = () => {
   const fetchCmsData = async () => {
     try {
       const [pagesRes, inqRes] = await Promise.all([
-        apiClient.get('/cms/pages'),
-        apiClient.get('/cms/inquiries')
+        apiClient.get('/cms/pages').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/cms/inquiries').catch(() => ({ data: { data: [] } }))
       ]);
-      if (pagesRes.data?.success) setCmsPages(pagesRes.data.data);
-      if (inqRes.data?.success) setCmsInquiries(inqRes.data.data);
+      const rawPages = pagesRes.data?.data;
+      setCmsPages(Array.isArray(rawPages) ? rawPages : Array.isArray(rawPages?.pages) ? rawPages.pages : []);
+      const rawInq = inqRes.data?.data;
+      setCmsInquiries(Array.isArray(rawInq) ? rawInq : Array.isArray(rawInq?.inquiries) ? rawInq.inquiries : []);
     } catch (err) {
       console.warn('Failed to load CMS data:', err);
     }
   };
 
-  const targetClassSections = classes.find((c) => c.id === targetClassId)?.sections || [];
+  const safeClasses = Array.isArray(classes) ? classes : [];
+  const targetClassSections = (safeClasses.find((c) => c.id === targetClassId)?.sections) || [];
 
   return (
     <div className={styles.container}>
@@ -403,7 +424,8 @@ const Settings: React.FC = () => {
                   <label className={styles.formLabel}>Institutional Working Days</label>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '6px' }}>
                     {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
-                      const isChecked = settings.working_days.includes(day);
+                      const currentDays = Array.isArray(settings?.working_days) ? settings.working_days : [];
+                      const isChecked = currentDays.includes(day);
                       return (
                         <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                           <input
@@ -412,8 +434,8 @@ const Settings: React.FC = () => {
                             disabled={!isSuperAdmin}
                             onChange={(e) => {
                               const nextDays = e.target.checked
-                                ? [...settings.working_days, day]
-                                : settings.working_days.filter((d) => d !== day);
+                                ? [...currentDays, day]
+                                : currentDays.filter((d) => d !== day);
                               setSettings({ ...settings, working_days: nextDays });
                             }}
                           />
@@ -455,7 +477,7 @@ const Settings: React.FC = () => {
                       required
                     >
                       <option value="">Select source class...</option>
-                      {classes.map((c) => (
+                      {safeClasses.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
@@ -473,7 +495,7 @@ const Settings: React.FC = () => {
                       required
                     >
                       <option value="">Select target class...</option>
-                      {classes
+                      {safeClasses
                         .filter((c) => c.id !== sourceClassId)
                         .map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
@@ -489,7 +511,7 @@ const Settings: React.FC = () => {
                       onChange={(e) => setTargetSectionId(e.target.value)}
                     >
                       <option value="">Unassigned (Class level only)</option>
-                      {targetClassSections.map((s) => (
+                      {(Array.isArray(targetClassSections) ? targetClassSections : []).map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
@@ -537,7 +559,7 @@ const Settings: React.FC = () => {
                   <Globe size={20} color="#4f46e5" /> Published Website Pages
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                  {cmsPages.map((page) => (
+                  {(Array.isArray(cmsPages) ? cmsPages : []).map((page) => (
                     <div
                       key={page.id}
                       style={{
@@ -578,7 +600,7 @@ const Settings: React.FC = () => {
                 <h3 style={{ margin: '0 0 1rem 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Mail size={20} color="#4f46e5" /> Incoming Public Admissions & General Inquiries
                 </h3>
-                {cmsInquiries.length === 0 ? (
+                {(!Array.isArray(cmsInquiries) || cmsInquiries.length === 0) ? (
                   <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                     No public inquiries received yet. Inquiries submitted via the landing page will appear here.
                   </div>
@@ -595,7 +617,7 @@ const Settings: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {cmsInquiries.map((inq) => (
+                        {(Array.isArray(cmsInquiries) ? cmsInquiries : []).map((inq) => (
                           <tr key={inq.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{inq.name}</td>
                             <td style={{ padding: '0.75rem 1rem' }}>
