@@ -82,8 +82,8 @@ const Settings: React.FC = () => {
     try {
       setLoading(true);
       const [settingsRes, classesRes] = await Promise.all([
-        apiClient.get('/admin/settings'),
-        apiClient.get('/academic/classes').catch(() => ({ data: { data: [] } }))
+        apiClient.get('/admin/settings').catch(() => ({ data: { success: false, data: null } })),
+        apiClient.get('/academic/classes').catch(() => ({ data: { success: false, data: [] } }))
       ]);
 
       if (settingsRes.data?.success && settingsRes.data?.data) {
@@ -99,8 +99,19 @@ const Settings: React.FC = () => {
           rawWorkingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
         }
 
+        const d = settingsRes.data.data;
         setSettings({
-          ...settingsRes.data.data,
+          school_name: d.school_name || 'Saksham International Academy',
+          affiliation_number: d.affiliation_number || '',
+          address: d.address || '',
+          phone: d.phone || '',
+          email: d.email || '',
+          website: d.website || '',
+          logo_url: d.logo_url || '',
+          motto: d.motto || '',
+          currency: d.currency || 'INR',
+          period_duration_minutes: Number(d.period_duration_minutes) || 45,
+          attendance_cutoff_time: d.attendance_cutoff_time || '09:00',
           working_days: rawWorkingDays
         });
       }
