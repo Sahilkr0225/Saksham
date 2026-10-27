@@ -29,13 +29,30 @@ const Landing: React.FC = () => {
   const [inquirySubmitted, setInquirySubmitted] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     studentName: '',
+    email: '',
     grade: 'Grade 1',
     phone: '',
   });
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.studentName.trim() || !formData.phone.trim()) return;
+    if (!formData.studentName.trim() || !formData.email.trim()) return;
+
+    try {
+      await fetch('/api/v1/cms/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.studentName,
+          email: formData.email,
+          phone: formData.phone,
+          subject: `Admissions Inquiry for ${formData.grade}`,
+          message: `Parent submitted an admission interest inquiry for ${formData.studentName} for entry into ${formData.grade}. Contact: ${formData.phone}`
+        })
+      });
+    } catch (err) {
+      console.warn('Inquiry submission notice:', err);
+    }
     setInquirySubmitted(true);
   };
 
@@ -43,7 +60,7 @@ const Landing: React.FC = () => {
     setIsModalOpen(false);
     setTimeout(() => {
       setInquirySubmitted(false);
-      setFormData({ studentName: '', grade: 'Grade 1', phone: '' });
+      setFormData({ studentName: '', email: '', grade: 'Grade 1', phone: '' });
     }, 300);
   };
 
@@ -375,6 +392,18 @@ const Landing: React.FC = () => {
                       placeholder="e.g. Aarav Sharma"
                       value={formData.studentName}
                       onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+                      className={styles.formInput}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Parent / Guardian Email</label>
+                    <input 
+                      type="email" 
+                      required
+                      placeholder="parent@example.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className={styles.formInput}
                     />
                   </div>
