@@ -14,6 +14,11 @@ import {
   GraduationCap,
   CalendarCheck,
   Award,
+  FileText,
+  BarChart3,
+  Settings as SettingsIcon,
+  HelpCircle,
+  Image as ImageIcon,
   X,
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
@@ -30,6 +35,11 @@ const navItems = [
   { to: '/exams', icon: <Award size={20} />, label: 'Exams & Results' },
   { to: '/fees', icon: <DollarSign size={20} />, label: 'Fee Management' },
   { to: '/notices', icon: <Bell size={20} />, label: 'Notices & Events' },
+  { to: '/documents', icon: <FileText size={20} />, label: 'Documents' },
+  { to: '/reports', icon: <BarChart3 size={20} />, label: 'Reports' },
+  { to: '/settings', icon: <SettingsIcon size={20} />, label: 'Settings' },
+  { to: '/support', icon: <HelpCircle size={20} />, label: 'Help & Support' },
+  { to: '/gallery', icon: <ImageIcon size={20} />, label: 'Gallery & Media' },
 ];
 
 interface SidebarProps {

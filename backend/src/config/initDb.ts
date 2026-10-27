@@ -465,6 +465,196 @@ const tablesSql = `
   CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
   CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
   CREATE INDEX IF NOT EXISTS idx_events_year ON events(academic_year_id);
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 14: NOTIFICATION ENGINE
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS notifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      type VARCHAR(30) NOT NULL DEFAULT 'system',        -- 'system', 'notice', 'fee', 'attendance', 'homework', 'exam', 'admission', 'document'
+      link VARCHAR(255),
+      is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      read_at TIMESTAMP WITH TIME ZONE,
+      metadata JSONB,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+  CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
+  CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 15: DOCUMENT MANAGEMENT
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS documents (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      entity_type VARCHAR(20) NOT NULL, -- 'student', 'teacher', 'admission', 'general'
+      entity_id UUID NOT NULL,
+      document_type VARCHAR(50) NOT NULL, -- 'birth_certificate', 'transfer_certificate', 'mark_sheet', 'id_proof', 'qualification', 'resume', 'other'
+      title VARCHAR(255) NOT NULL,
+      file_name VARCHAR(255) NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INT NOT NULL DEFAULT 0,
+      mime_type VARCHAR(100) NOT NULL DEFAULT 'application/octet-stream',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'verified', 'rejected'
+      verification_remarks TEXT,
+      verified_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      verified_at TIMESTAMP WITH TIME ZONE,
+      uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);
+  CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by);
+  CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+  CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC);
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 17: ADMINISTRATION & SETTINGS
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS school_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      school_name VARCHAR(255) NOT NULL DEFAULT 'Saksham International Academy',
+      affiliation_number VARCHAR(100),
+      address TEXT,
+      phone VARCHAR(50),
+      email VARCHAR(255),
+      website VARCHAR(255),
+      logo_url TEXT,
+      motto VARCHAR(255),
+      currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+      academic_year_id UUID REFERENCES academic_years(id) ON DELETE SET NULL,
+      working_days JSONB DEFAULT '["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]'::jsonb,
+      period_duration_minutes INT NOT NULL DEFAULT 45,
+      attendance_cutoff_time VARCHAR(10) DEFAULT '09:00',
+      grading_scale JSONB DEFAULT '[{"grade": "A+", "min": 90}, {"grade": "A", "min": 80}, {"grade": "B", "min": 70}, {"grade": "C", "min": 60}, {"grade": "D", "min": 40}, {"grade": "F", "min": 0}]'::jsonb,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 18: HELP & SUPPORT
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS faqs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      category VARCHAR(50) NOT NULL, -- 'general', 'admissions', 'fees', 'attendance', 'academics', 'account'
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      is_published BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_faqs_category ON faqs(category);
+
+  -- Sequence for ticket numbering
+  CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START WITH 1001 INCREMENT BY 1;
+
+  CREATE TABLE IF NOT EXISTS support_tickets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      ticket_number VARCHAR(50) NOT NULL UNIQUE, -- TIK-YYYY-NNNN
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject VARCHAR(255) NOT NULL,
+      category VARCHAR(50) NOT NULL, -- 'technical', 'academic', 'fees', 'admissions', 'general'
+      priority VARCHAR(20) NOT NULL DEFAULT 'medium', -- 'low', 'medium', 'high', 'urgent'
+      status VARCHAR(20) NOT NULL DEFAULT 'open', -- 'open', 'in_progress', 'resolved', 'closed'
+      description TEXT NOT NULL,
+      assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+      resolved_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(user_id);
+  CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+
+  CREATE TABLE IF NOT EXISTS ticket_replies (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket ON ticket_replies(ticket_id);
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 19: GALLERY & MEDIA
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS gallery_albums (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      cover_image_url TEXT,
+      is_public BOOLEAN NOT NULL DEFAULT TRUE,
+      category VARCHAR(50) NOT NULL DEFAULT 'events', -- 'events', 'campus', 'sports', 'annual_day', 'achievements', 'other'
+      created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_gallery_albums_category ON gallery_albums(category);
+  CREATE INDEX IF NOT EXISTS idx_gallery_albums_created_at ON gallery_albums(created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS gallery_media (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      album_id UUID NOT NULL REFERENCES gallery_albums(id) ON DELETE CASCADE,
+      title VARCHAR(255),
+      caption TEXT,
+      media_type VARCHAR(20) NOT NULL DEFAULT 'image', -- 'image', 'video'
+      file_name VARCHAR(255) NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INT NOT NULL DEFAULT 0,
+      mime_type VARCHAR(100) NOT NULL DEFAULT 'image/jpeg',
+      uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_gallery_media_album ON gallery_media(album_id);
+  CREATE INDEX IF NOT EXISTS idx_gallery_media_created_at ON gallery_media(created_at DESC);
+
+  -- ─────────────────────────────────────────────────────────
+  -- MODULE 20: PUBLIC WEBSITE CMS
+  -- ─────────────────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS cms_pages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug VARCHAR(100) NOT NULL UNIQUE,
+      title VARCHAR(255) NOT NULL,
+      content_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      is_published BOOLEAN NOT NULL DEFAULT TRUE,
+      updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cms_pages_slug ON cms_pages(slug);
+
+  CREATE TABLE IF NOT EXISTS cms_inquiries (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      phone VARCHAR(50),
+      subject VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'new', -- 'new', 'contacted', 'resolved', 'archived'
+      notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cms_inquiries_status ON cms_inquiries(status);
+  CREATE INDEX IF NOT EXISTS idx_cms_inquiries_created_at ON cms_inquiries(created_at DESC);
 `;
 
 const seedRolesSql = `
@@ -476,6 +666,28 @@ const seedRolesSql = `
       ('parent', 'Their child data only'),
       ('student', 'Own profile, results, notices')
   ON CONFLICT (name) DO NOTHING;
+`;
+
+const seedFaqsSql = `
+  INSERT INTO faqs (category, question, answer, display_order)
+  SELECT * FROM (VALUES
+    ('admissions', 'How do I submit an application for student admission?', 'Visit the Admissions portal or public school website, fill out the student and guardian details form, and submit required documents like the Birth Certificate.', 1),
+    ('fees', 'How can parents pay school fees?', 'Parents can view pending invoices in the Fee Management tab and pay directly at the school accounts desk via Cash, Cheque, or online bank transfer with an automated receipt.', 2),
+    ('attendance', 'What is the minimum attendance requirement?', 'Students are expected to maintain at least 75% attendance across terms to be eligible for terminal examinations.', 3),
+    ('academics', 'Where can I access examination report cards?', 'Report cards are generated under the Exams & Results tab once evaluations are published by class teachers.', 4),
+    ('account', 'What should I do if I forget my password?', 'Contact the School Administrator or use the Forgot Password OTP flow on the login page.', 5)
+  ) AS v(category, question, answer, display_order)
+  WHERE NOT EXISTS (SELECT 1 FROM faqs LIMIT 1);
+`;
+
+const seedCmsPagesSql = `
+  INSERT INTO cms_pages (slug, title, content_json, is_published)
+  SELECT * FROM (VALUES
+    ('about-us', 'About Saksham International Academy', '{"tagline": "Empowering young minds with holistic education and academic excellence.", "established": 2010, "values": ["Integrity", "Excellence", "Diversity", "Innovation"], "mission": "To provide state-of-the-art learning environments that foster intellectual curiosity, moral courage, and global citizenship."}'::jsonb, TRUE),
+    ('principal-message', 'Message from the Principal', '{"author": "Dr. Sarah Mitchell", "designation": "Principal & Educational Director", "quote": "Education is not merely the transmission of knowledge, but the ignition of potential.", "body": "Welcome to Saksham International Academy. Here, our educators are mentors dedicated to cultivating critical thinking, empathy, and lifelong curiosity in every student."}'::jsonb, TRUE),
+    ('admissions-info', 'Admissions Guidelines & Criteria', '{"academicYear": "2026-2027", "grades": "Pre-K to Grade 12", "overview": "Admissions are open to all eligible students without bias. We evaluate aptitude, previous scholastic performance, and extracurricular involvement.", "contactEmail": "admissions@saksham.edu", "contactPhone": "+91 98765 43210"}'::jsonb, TRUE)
+  ) AS v(slug, title, content_json, is_published)
+  WHERE NOT EXISTS (SELECT 1 FROM cms_pages LIMIT 1);
 `;
 
 // Seeds the first super admin user — only runs if email doesn't exist yet
@@ -541,6 +753,14 @@ export const initDb = async () => {
         // Seed default roles
         await client.query(seedRolesSql);
         console.log('🌱 Roles seeded successfully.');
+
+        // Seed default FAQs
+        await client.query(seedFaqsSql);
+        console.log('🌱 Default FAQs seeded.');
+
+        // Seed default CMS pages
+        await client.query(seedCmsPagesSql);
+        console.log('🌱 Default CMS pages seeded.');
 
         await client.query('COMMIT');
         console.log('🎉 Database initialization complete!');

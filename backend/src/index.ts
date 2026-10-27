@@ -16,6 +16,13 @@ import homeworkRoutes from './routes/homeworkRoutes';
 import examRoutes from './routes/examRoutes';
 import feeRoutes from './routes/feeRoutes';
 import noticeRoutes from './routes/noticeRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import documentRoutes from './routes/documentRoutes';
+import reportRoutes from './routes/reportRoutes';
+import adminRoutes from './routes/adminRoutes';
+import supportRoutes from './routes/supportRoutes';
+import galleryRoutes from './routes/galleryRoutes';
+import cmsRoutes from './routes/cmsRoutes';
 import { validateJwtSecrets } from './utils/auth';
 
 // Load environment variables
@@ -65,7 +72,8 @@ app.use(cors({
   ],
   exposedHeaders: ['Idempotent-Replay', 'Content-Disposition']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser()); // Required for reading HTTPOnly refresh_token cookie
 app.use(morgan('dev'));
 
@@ -92,6 +100,13 @@ app.use('/api/v1/homework', homeworkRoutes);
 app.use('/api/v1/exams', examRoutes);
 app.use('/api/v1/fees', feeRoutes);
 app.use('/api/v1/notices', noticeRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/documents', documentRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/support', supportRoutes);
+app.use('/api/v1/gallery', galleryRoutes);
+app.use('/api/v1/cms', cmsRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {
